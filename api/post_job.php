@@ -1,4 +1,6 @@
 <?php
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
 session_start();
 header('Content-Type: application/json');
 include '../config/db_connect.php';
@@ -8,10 +10,9 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'company') {
     exit;
 }
 
-// Decode JSON data from frontend
-$data = json_decode(file_get_contents('php://input'), true);
+// Removed JSON decode from php://input
 $company_id = $_SESSION['user_id'];
-$job_type = $data['type'] ?? '';
+$job_type = $_POST['type'] ?? '';
 
 if (!$job_type) {
     echo json_encode(['success' => false, 'message' => 'Opportunity type is required']);
@@ -33,7 +34,8 @@ try {
         'salary_structure_pdf',
         'leave_policy_pdf',
         'bond_copy',
-        'medical_insurance_terms'
+        'medical_insurance_terms',
+        'holiday_list_path'
     ];
     $uploaded_files = [];
 
@@ -55,7 +57,18 @@ try {
         }
     }
 
-    // Prepare data for database insertion, including uploaded files
+    // Decode nested JSON fields from $_POST
+    $locations = isset($_POST['locations']) ? json_decode($_POST['locations'], true) : [];
+    $skills = isset($_POST['skills']) ? json_decode($_POST['skills'], true) : [];
+    $eligibility = isset($_POST['eligibility']) ? json_decode($_POST['eligibility'], true) : [];
+    $salary_breakdown = isset($_POST['salary_breakdown']) ? json_decode($_POST['salary_breakdown'], true) : [];
+    $branch_locations = isset($_POST['branch_locations']) ? json_decode($_POST['branch_locations'], true) : [];
+    $bonus = isset($_POST['bonus']) ? json_decode($_POST['bonus'], true) : [];
+    $companyDetails = isset($_POST['companyDetails']) ? json_decode($_POST['companyDetails'], true) : [];
+
+    $leaves_carry_forward = $_POST['leaves_carry_forward'] ?? null;
+    $benefits_family_included = $_POST['benefits_family_included'] ?? null;
+
     $query = "INSERT INTO jobs (
         company_id, type, title, position, domain, openings, duration, start_date, stipend, fulltime_offer,
         work_type, timings, locations, skills, description, responsibilities, eligibility_qualification,
@@ -86,66 +99,66 @@ try {
     $stmt->execute([
         'company_id' => $company_id,
         'type' => $job_type,
-        'title' => $data['title'] ?? null,
-        'position' => $data['position'] ?? null,
-        'domain' => $data['domain'] ?? null,
-        'openings' => $data['openings'] ?? null,
-        'duration' => $data['duration'] ?? null,
-        'start_date' => $data['start_date'] ?? null,
-        'stipend' => $data['stipend'] ?? null,
-        'fulltime_offer' => $data['fulltime_offer'] ?? null,
-        'work_type' => $data['work_type'] ?? null,
-        'timings' => $data['timings'] ?? null,
-        'locations' => json_encode($data['locations'] ?? []),
-        'skills' => json_encode($data['skills'] ?? []),
-        'description' => $data['description'] ?? null,
-        'responsibilities' => $data['responsibilities'] ?? null,
-        'eligibility_qualification' => $data['eligibility']['qualification'] ?? null,
-        'eligibility_courses' => json_encode($data['eligibility']['preferredCourses'] ?? []),
-        'eligibility_grad_year' => $data['eligibility']['graduationYear'] ?? null,
-        'eligibility_min_cgpa' => $data['eligibility']['minCgpa'] ?? null,
-        'salary_ctc' => $data['salary']['totalCtc'] ?? null,
-        'salary_breakdown' => json_encode($data['salary']['breakdown'] ?? []),
-        'leaves_total' => $data['leaves']['total'] ?? null,
-        'leaves_cl' => $data['leaves']['cl'] ?? null,
-        'leaves_sl' => $data['leaves']['sl'] ?? null,
-        'leaves_el' => $data['leaves']['el'] ?? null,
-        'leaves_carry_forward' => $data['leaves']['carryForward'] ?? null,
-        'leaves_maternity_paternity' => $data['leaves']['maternityPaternity'] ?? null,
-        'leaves_maternity_days' => $data['leaves']['maternityPaternityDays'] ?? null,
-        'holiday_list_path' => $data['leaves']['holidayList'] ?? null,
-        'benefits_medical_insurance' => $data['benefits']['medicalInsurance'] ?? null,
-        'benefits_coverage_amount' => $data['benefits']['coverageAmount'] ?? null,
-        'benefits_family_included' => $data['benefits']['familyIncluded'] ?? null,
-        'benefits_wfh' => $data['benefits']['wfh'] ?? null,
-        'benefits_internet' => $data['benefits']['internetReimbursement'] ?? null,
-        'benefits_laptop' => $data['benefits']['laptopProvided'] ?? null,
-        'benefits_dress_code' => $data['benefits']['dressCode'] ?? null,
-        'benefits_health_checkups' => $data['benefits']['healthCheckups'] ?? null,
-        'bond_required' => $data['bond']['required'] ?? null,
-        'bond_duration_value' => $data['bond']['durationValue'] ?? null,
-        'bond_duration_unit' => $data['bond']['durationUnit'] ?? null,
-        'bond_penalty_amount' => $data['bond']['penaltyAmount'] ?? null,
-        'bond_background_check' => $data['bond']['backgroundCheck'] ?? null,
-        'bond_probation_period' => $data['bond']['probationPeriod'] ?? null,
-        'bond_notice_period' => $data['bond']['noticePeriod'] ?? null,
-        'bond_non_compete' => $data['bond']['nonCompete'] ?? null,
-        'company_address' => $data['companyDetails']['registeredAddress'] ?? null,
-        'hr_contact_name' => $data['companyDetails']['hrContactPersonName'] ?? null,
-        'hr_designation' => $data['companyDetails']['hrDesignation'] ?? null,
-        'hr_email' => $data['companyDetails']['hrEmail'] ?? null,
-        'branch_locations' => json_encode($data['companyDetails']['branchLocations'] ?? []),
+        'title' => $_POST['title'] ?? null,
+        'position' => $_POST['position'] ?? null,
+        'domain' => $_POST['domain'] ?? null,
+        'openings' => $_POST['openings'] ?? null,
+        'duration' => $_POST['duration'] ?? null,
+        'start_date' => $_POST['start_date'] ?? null,
+        'stipend' => $_POST['stipend'] ?? null,
+        'fulltime_offer' => $_POST['fulltime_offer'] ?? null,
+        'work_type' => $_POST['work_type'] ?? null,
+        'timings' => $_POST['timings'] ?? null,
+        'locations' => json_encode($locations),
+        'skills' => json_encode($skills),
+        'description' => $_POST['description'] ?? null,
+        'responsibilities' => $_POST['responsibilities'] ?? null,
+        'eligibility_qualification' => $eligibility['qualification'] ?? null,
+        'eligibility_courses' => json_encode($eligibility['preferredCourses'] ?? []),
+        'eligibility_grad_year' => $eligibility['graduationYear'] ?? null,
+        'eligibility_min_cgpa' => $eligibility['minCgpa'] ?? null,
+        'salary_ctc' => $_POST['salary_ctc'] ?? null,
+        'salary_breakdown' => json_encode($salary_breakdown),
+        'leaves_total' => $_POST['leaves_total'] ?? null,
+        'leaves_cl' => $_POST['leaves_cl'] ?? null,
+        'leaves_sl' => $_POST['leaves_sl'] ?? null,
+        'leaves_el' => $_POST['leaves_el'] ?? null,
+        'leaves_carry_forward' => $leaves_carry_forward,
+        'leaves_maternity_paternity' => $_POST['leaves_maternity_paternity'] ?? null,
+        'leaves_maternity_days' => $_POST['leaves_maternity_days'] ?? null,
+        'holiday_list_path' => $uploaded_files['holiday_list_path'] ?? null,
+        'benefits_medical_insurance' => $_POST['benefits_medical_insurance'] ?? null,
+        'benefits_coverage_amount' => $_POST['benefits_coverage_amount'] ?? null,
+        'benefits_family_included' => $benefits_family_included,
+        'benefits_wfh' => $_POST['benefits_wfh'] ?? null,
+        'benefits_internet' => $_POST['benefits_internet'] ?? null,
+        'benefits_laptop' => $_POST['benefits_laptop'] ?? null,
+        'benefits_dress_code' => $_POST['benefits_dress_code'] ?? null,
+        'benefits_health_checkups' => $_POST['benefits_health_checkups'] ?? null,
+        'bond_required' => $_POST['bond_required'] ?? null,
+        'bond_duration_value' => $_POST['bond_duration_value'] ?? null,
+        'bond_duration_unit' => $_POST['bond_duration_unit'] ?? null,
+        'bond_penalty_amount' => $_POST['bond_penalty_amount'] ?? null,
+        'bond_background_check' => $_POST['bond_background_check'] ?? null,
+        'bond_probation_period' => $_POST['bond_probation_period'] ?? null,
+        'bond_notice_period' => $_POST['bond_notice_period'] ?? null,
+        'bond_non_compete' => $_POST['bond_non_compete'] ?? null,
+        'company_address' => $companyDetails['registeredAddress'] ?? null,
+        'hr_contact_name' => $companyDetails['hrContactPersonName'] ?? null,
+        'hr_designation' => $companyDetails['hrDesignation'] ?? null,
+        'hr_email' => $companyDetails['hrEmail'] ?? null,
+        'branch_locations' => json_encode($branch_locations),
         'job_description_pdf' => $uploaded_files['job_description_pdf'] ?? null,
         'salary_structure_pdf' => $uploaded_files['salary_structure_pdf'] ?? null,
         'leave_policy_pdf' => $uploaded_files['leave_policy_pdf'] ?? null,
         'bond_copy' => $uploaded_files['bond_copy'] ?? null,
         'medical_insurance_terms' => $uploaded_files['medical_insurance_terms'] ?? null,
-        'growth_opportunities' => $data['bonus']['growthOpportunities'] ?? null,
-        'travel_requirements' => $data['bonus']['travelRequirements'] ?? null,
-        'id_email_setup_timeline' => $data['bonus']['idEmailSetupTimeline'] ?? null,
-        'onboarding_process' => $data['bonus']['onboardingProcess'] ?? null,
+        'growth_opportunities' => $bonus['growthOpportunities'] ?? null,
+        'travel_requirements' => $bonus['travelRequirements'] ?? null,
+        'id_email_setup_timeline' => $bonus['idEmailSetupTimeline'] ?? null,
+        'onboarding_process' => $bonus['onboardingProcess'] ?? null,
         'posted_date' => date('Y-m-d'),
-        'deadline' => $data['deadline']
+        'deadline' => $_POST['deadline'] ?? null
     ]);
 
     $pdo->commit();

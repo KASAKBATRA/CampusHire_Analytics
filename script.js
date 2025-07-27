@@ -108,7 +108,7 @@ function showRegister() {
     showModal('role-modal');
 }
 
-document.getElementById('login-form').addEventListener('submit', async function (e) {
+document.getElementById('login-form').addEventListener('submit', async function(e) {
     e.preventDefault();
     const submitBtn = this.querySelector('button[type="submit"]');
     submitBtn.classList.add('loading');
@@ -153,7 +153,7 @@ document.getElementById('login-form').addEventListener('submit', async function 
 });
 
 
-document.getElementById('register-form').addEventListener('submit', async function (e) {
+document.getElementById('register-form').addEventListener('submit', async function(e) {
     e.preventDefault();
     const submitBtn = this.querySelector('button[type="submit"]');
     submitBtn.classList.add('loading');
@@ -379,6 +379,12 @@ function loadStudentProfile() {
     document.getElementById('student-cgpa').textContent = `CGPA: ${student.cgpa || 'N/A'}`;
     document.getElementById('student-phone').textContent = `Phone: ${student.phone || '-'}`;
 
+    const skillsDropdown = document.getElementById('student-skills-dropdown');
+    if (skillsDropdown && student.skills) {
+        Array.from(skillsDropdown.options).forEach(option => {
+            option.selected = student.skills.includes(option.value);
+        });
+    }
 
     const applications = AppState.applications.filter(a => a.student_id === student.id);
     document.getElementById('applications-count').textContent = applications.length;
@@ -386,62 +392,41 @@ function loadStudentProfile() {
     document.getElementById('offers-count').textContent = student.placement ? 1 : 0;
 }
 
-// Inside MultipleFiles/script.js
-
-// ... (existing code) ...
-
 function editStudentProfile() {
     const student = AppState.currentUser;
     if (!student || student.role !== 'student') {
-        showError('Error: No student logged in.', 'student-profile-edit-message'); // Use specific message div
+        showError('Error: No student logged in.');
         return;
     }
-
-    // Clear previous messages
-    document.getElementById('student-profile-edit-message').innerHTML = '';
 
     document.getElementById('edit-student-name').value = student.name || '';
     document.getElementById('edit-student-phone').value = student.phone || '';
     document.getElementById('edit-student-github').value = student.github || '';
-    document.getElementById('edit-student-linkedin').value = student.linkedin || '';
+    document.getElementById('edit-student-linkedin').value = student.linkedin || ''; // Corrected field name
     document.getElementById('edit-student-overall-cgpa').value = student.cgpa || '';
-    document.getElementById('edit-student-10th').value = student.tenth_percentage || '';
-    document.getElementById('edit-student-12th').value = student.twelfth_percentage || '';
+    document.getElementById('edit-student-10th').value = student.tenth_percentage || ''; // Corrected field name
+    document.getElementById('edit-student-12th').value = student.twelfth_percentage || ''; // Corrected field name
     document.getElementById('edit-student-interest').value = student.interest || '';
-    document.getElementById('edit-student-grad-year').value = student.grad_year || '';
-
-    // Handle photo upload
-    const photoInput = document.getElementById('edit-student-photo');
-    const photoPreview = document.getElementById('photo-preview');
-    photoPreview.textContent = student.photo_path ? `Current photo: ${student.photo_path.split('/').pop()}` : 'No photo uploaded';
-
-    if (photoInput._handler) {
-        photoInput.removeEventListener('change', photoInput._handler);
-    }
-    const newPhotoInputHandler = function () {
-        photoPreview.textContent = this.files[0] ? `Selected: ${this.files[0].name}` : 'No file selected';
-    };
-    photoInput.addEventListener('change', newPhotoInputHandler);
-    photoInput._handler = newPhotoInputHandler;
+    document.getElementById('edit-student-grad-year').value = student.grad_year || ''; // Corrected field name
 
     const skillsSelect = document.getElementById('edit-student-skills');
     const selectedSkillsDisplay = document.getElementById('selected-skills-display');
-    selectedSkillsDisplay.innerHTML = ''; // Clear previous tags
+    selectedSkillsDisplay.innerHTML = '';
 
-    // Deselect all options in the dropdown first
     Array.from(skillsSelect.options).forEach(option => {
         option.selected = false;
     });
 
-    // Populate selected skills and display as tags
     if (student.skills && student.skills.length > 0) {
         student.skills.forEach(skill => {
             const option = Array.from(skillsSelect.options).find(opt => opt.value === skill);
             if (option) {
-                option.selected = true; // Select in dropdown if it exists
+                option.selected = true;
             }
-            // Always add as a tag, even if it's a custom skill not in dropdown
-            addSkillTagToDisplay(skill, selectedSkillsDisplay);
+            const skillTag = document.createElement('span');
+            skillTag.className = 'skill-tag';
+            skillTag.textContent = skill;
+            selectedSkillsDisplay.appendChild(skillTag);
         });
     }
 
@@ -455,100 +440,58 @@ function editStudentProfile() {
 
     const newAddCustomSkillBtnHandler = () => {
         const customSkill = customSkillInput.value.trim();
-        if (customSkill) {
-            // Check if skill already exists in selected skills (either from dropdown or custom)
-            const currentSkills = Array.from(selectedSkillsDisplay.querySelectorAll('.skill-tag')).map(tag => tag.textContent.replace(' ×', '').trim());
-            if (!currentSkills.includes(customSkill)) {
-                addSkillTagToDisplay(customSkill, selectedSkillsDisplay);
-                customSkillInput.value = '';
-            } else {
-                showError('Skill already added.', 'student-profile-edit-message');
-            }
+        if (customSkill && !student.skills.includes(customSkill)) {
+            student.skills.push(customSkill);
+            const skillTag = document.createElement('span');
+            skillTag.className = 'skill-tag';
+            skillTag.textContent = customSkill;
+            selectedSkillsDisplay.appendChild(skillTag);
+            customSkillInput.value = '';
+        } else if (student.skills.includes(customSkill)) {
+            showError('Skill already added.');
         }
     };
     addCustomSkillBtn.addEventListener('click', newAddCustomSkillBtnHandler);
     addCustomSkillBtn._handler = newAddCustomSkillBtnHandler; // Store reference to handler
 
-    // Handle removal of skills from display tags
-    selectedSkillsDisplay.addEventListener('click', function (event) {
-        if (event.target.classList.contains('remove-skill')) {
-            const skillToRemove = event.target.dataset.skill;
-            event.target.closest('.skill-tag').remove(); // Remove the tag from display
-
-            // Also deselect from the dropdown if it was a dropdown skill
-            const option = Array.from(skillsSelect.options).find(opt => opt.value === skillToRemove);
-            if (option) {
-                option.selected = false;
-            }
-        }
-    });
-
-    // Handle adding skills from dropdown to display tags
-    skillsSelect.addEventListener('change', function () {
-        const currentlySelectedDropdownSkills = Array.from(this.selectedOptions).map(option => option.value);
-        const currentDisplayedSkills = Array.from(selectedSkillsDisplay.querySelectorAll('.skill-tag')).map(tag => tag.textContent.replace(' ×', '').trim());
-
-        // Add newly selected dropdown skills to display if not already there
-        currentlySelectedDropdownSkills.forEach(skill => {
-            if (!currentDisplayedSkills.includes(skill)) {
-                addSkillTagToDisplay(skill, selectedSkillsDisplay);
-            }
-        });
-
-        // Remove skills from display if they were deselected in dropdown
-        currentDisplayedSkills.forEach(displayedSkill => {
-            const isFromDropdown = Array.from(skillsSelect.options).some(opt => opt.value === displayedSkill);
-            if (isFromDropdown && !currentlySelectedDropdownSkills.includes(displayedSkill)) {
-                selectedSkillsDisplay.querySelector(`.skill-tag button[data-skill="${displayedSkill}"]`).closest('.skill-tag').remove();
-            }
-        });
-    });
-
-    // Removed semester CGPA section
     const semesterContainer = document.getElementById('semester-cgpa-container');
-    if (semesterContainer) {
-        semesterContainer.innerHTML = ''; // Clear any existing content
-    }
+    semesterContainer.innerHTML = '';
+    const semesters = student.cgpaSemesters || {}; // cgpaSemesters is an object from PHP
+    const maxSemesters = (student.year || 1) * 2; // Assuming max 2 semesters per year
 
+    for (let i = 1; i <= maxSemesters; i++) {
+        const semesterCgpa = semesters[i] || ''; // Get CGPA for current semester
+        semesterContainer.innerHTML += `
+            <div class="form-group">
+                <label for="edit-semester-${i}">Semester ${i}</label>
+                <input type="number" step="0.1" min="0" max="10" id="edit-semester-${i}" value="${semesterCgpa}" required>
+            </div>
+        `;
+    }
 
     const resumeInput = document.getElementById('edit-student-resume');
     const resumePreview = document.getElementById('resume-preview');
-    resumePreview.textContent = student.resume_path ? `Current resume: ${student.resume_path.split('/').pop()}` : 'No resume uploaded';
+    resumePreview.textContent = student.resume_path ? `Current resume: ${student.resume_path.split('/').pop()}` : 'No resume uploaded'; // Corrected field name
 
+    // Remove previous event listener to prevent multiple bindings
     if (resumeInput._handler) {
         resumeInput.removeEventListener('change', resumeInput._handler);
     }
 
-    const newResumeInputHandler = function () {
+    const newResumeInputHandler = function() {
         resumePreview.textContent = this.files[0] ? `Selected: ${this.files[0].name}` : 'No file selected';
     };
     resumeInput.addEventListener('change', newResumeInputHandler);
-    resumeInput._handler = newResumeInputHandler;
+    resumeInput._handler = newResumeInputHandler; // Store reference to handler
 
-    // Re-initialize collapsible sections on this page
-    setupCollapsibleSections();
-    resetCollapsibleSections(); // Ensure they are closed initially
-
-    showPage('student-profile-edit-page');
+    showPage('student-profile-edit-page'); // Show the edit page
 }
 
-// Helper function to add a skill tag to the display
-function addSkillTagToDisplay(skill, container) {
-    const skillTag = document.createElement('span');
-    skillTag.className = 'skill-tag';
-    skillTag.innerHTML = `${skill} <button type="button" class="remove-skill" data-skill="${skill}">×</button>`;
-    container.appendChild(skillTag);
-}
-
-
-document.getElementById('student-profile-edit-form').addEventListener('submit', async function (e) {
+document.getElementById('student-profile-edit-form').addEventListener('submit', async function(e) {
     e.preventDefault();
     const submitBtn = this.querySelector('button[type="submit"]');
     submitBtn.classList.add('loading');
     submitBtn.disabled = true;
-
-    // Clear previous messages
-    document.getElementById('student-profile-edit-message').innerHTML = '';
 
     if (!confirm('Are you sure you want to save these changes?')) {
         submitBtn.classList.remove('loading');
@@ -558,134 +501,109 @@ document.getElementById('student-profile-edit-form').addEventListener('submit', 
 
     const currentUser = AppState.currentUser;
 
+    // Collect updated data
     const updatedData = {
         id: currentUser.id,
         name: document.getElementById('edit-student-name').value.trim(),
         phone: document.getElementById('edit-student-phone').value.trim(),
         github: document.getElementById('edit-student-github').value.trim(),
-        linkedin: document.getElementById('edit-student-linkedin').value.trim(),
+        linkedin: document.getElementById('edit-student-linkedin').value.trim(), // Corrected field name
         cgpa: parseFloat(document.getElementById('edit-student-overall-cgpa').value) || 0,
-        tenth_percentage: parseFloat(document.getElementById('edit-student-10th').value) || 0,
-        twelfth_percentage: parseFloat(document.getElementById('edit-student-12th').value) || 0,
+        tenth_percentage: parseFloat(document.getElementById('edit-student-10th').value) || 0, // Corrected field name
+        twelfth_percentage: parseFloat(document.getElementById('edit-student-12th').value) || 0, // Corrected field name
         interest: document.getElementById('edit-student-interest').value.trim(),
-        grad_year: parseInt(document.getElementById('edit-student-grad-year').value) || 0,
+        grad_year: parseInt(document.getElementById('edit-student-grad-year').value) || 0, // Corrected field name
     };
 
-    // Collect skills from the displayed tags
-    const selectedSkillsDisplay = document.getElementById('selected-skills-display');
-    updatedData.skills = Array.from(selectedSkillsDisplay.querySelectorAll('.skill-tag')).map(tag => tag.textContent.replace(' ×', '').trim());
+    const selectedDropdownSkills = Array.from(document.getElementById('edit-student-skills').selectedOptions).map(opt => opt.value);
+    const currentCustomSkills = Array.from(document.getElementById('selected-skills-display').children)
+                                .map(tag => tag.textContent.replace(' ×', '').trim()); // Assuming '×' is added for removal
+    updatedData.skills = [...new Set([...selectedDropdownSkills, ...currentCustomSkills])];
 
-    // Basic validation
-    if (!updatedData.name || !updatedData.phone || !updatedData.github || !updatedData.linkedin || !updatedData.interest || !updatedData.grad_year || updatedData.skills.length === 0) {
-        showError('Please fill in all required fields.', 'student-profile-edit-message');
-        submitBtn.classList.remove('loading');
-        submitBtn.disabled = false;
-        return;
-    }
-    if (updatedData.cgpa === 0 || updatedData.tenth_percentage === 0 || updatedData.twelfth_percentage === 0) {
-        showError('CGPA and percentages cannot be zero. Please enter valid values.', 'student-profile-edit-message');
+    if (!updatedData.name || !updatedData.phone || !updatedData.github || !updatedData.linkedin || !updatedData.cgpa || !updatedData.tenth_percentage || !updatedData.twelfth_percentage || !updatedData.interest || !updatedData.grad_year || updatedData.skills.length === 0) {
+        showError('Please fill in all required fields.');
         submitBtn.classList.remove('loading');
         submitBtn.disabled = false;
         return;
     }
 
     if (!/^\+[0-9]{1,3}[0-9]{10}$/.test(updatedData.phone)) {
-        showError('Phone number must include country code (e.g., +919876543210).', 'student-profile-edit-message');
-        submitBtn.classList.remove('loading');
-        submitBtn.disabled = false;
-        return;
-    }
-    if (!/^https?:\/\/(www\.)?github\.com\//i.test(updatedData.github)) {
-        showError('Please enter a valid GitHub profile URL.', 'student-profile-edit-message');
-        submitBtn.classList.remove('loading');
-        submitBtn.disabled = false;
-        return;
-    }
-    if (!/^https?:\/\/(www\.)?linkedin\.com\/in\//i.test(updatedData.linkedin)) {
-        showError('Please enter a valid LinkedIn profile URL.', 'student-profile-edit-message');
+        showError('Phone number must include country code (e.g., +919876543210).');
         submitBtn.classList.remove('loading');
         submitBtn.disabled = false;
         return;
     }
 
-    // Removed semester CGPA collection
-    updatedData.cgpaSemesters = {}; // Ensure this is empty or removed from payload if not needed on backend
+    updatedData.cgpaSemesters = {}; // Initialize as an object
+    const maxSemesters = (currentUser.year || 1) * 2;
+    for (let i = 1; i <= maxSemesters; i++) {
+        const inputElement = document.getElementById(`edit-semester-${i}`);
+        const value = parseFloat(inputElement.value) || 0;
+        if (value <= 0 || value > 10) {
+            showError(`Invalid CGPA for Semester ${i}. Must be between 0 and 10.`);
+            submitBtn.classList.remove('loading');
+            submitBtn.disabled = false;
+            return;
+        }
+        updatedData.cgpaSemesters[i] = value; // Store as key-value pair
+    }
 
     const resumeInput = document.getElementById('edit-student-resume');
-    const resumeFile = resumeInput.files[0];
-    let resume_path = currentUser.resume_path;
-
-    const photoInput = document.getElementById('edit-student-photo');
-    const photoFile = photoInput.files[0];
-    let photo_path = currentUser.photo_path;
+    const file = resumeInput.files[0];
+    let resume_path = currentUser.resume_path; // Keep existing path if no new file
 
     const formData = new FormData();
     for (const key in updatedData) {
-        if (key === 'skills' || key === 'cgpaSemesters') {
+        if (key === 'skills') {
+            formData.append(key, JSON.stringify(updatedData[key]));
+        } else if (key === 'cgpaSemesters') {
             formData.append(key, JSON.stringify(updatedData[key]));
         } else {
             formData.append(key, updatedData[key]);
         }
     }
 
-    if (resumeFile) {
-        if (resumeFile.type !== 'application/pdf') {
-            showError('Please upload a valid PDF file for the resume.', 'student-profile-edit-message');
+    if (file) {
+        if (file.type !== 'application/pdf') {
+            showError('Please upload a valid PDF file for the resume.');
             submitBtn.classList.remove('loading');
             submitBtn.disabled = false;
             return;
         }
-        formData.append('resume', resumeFile);
-    } else if (!currentUser.resume_path) { // If no new file and no existing resume
-        showError('Please upload your resume.', 'student-profile-edit-message');
-        submitBtn.classList.remove('loading');
-        submitBtn.disabled = false;
-        return;
+        formData.append('resume', file); // Append the file
     }
-
-    if (photoFile) {
-        if (!photoFile.type.startsWith('image/')) {
-            showError('Please upload a valid image file for the profile photo.', 'student-profile-edit-message');
-            submitBtn.classList.remove('loading');
-            submitBtn.disabled = false;
-            return;
-        }
-        formData.append('photo', photoFile);
-    }
-
 
     try {
-        const response = await fetch('api/update_student_profile.php', {
+        // Assuming you have an API endpoint for updating student profiles
+        const response = await fetch('api/update_student_profile.php', { // You need to create this PHP file
             method: 'POST',
-            body: formData
+            body: formData // FormData handles Content-Type automatically
         });
         const result = await response.json();
 
         if (result.success) {
-            AppState.currentUser = {
-                ...AppState.currentUser,
-                ...updatedData,
-                profile_completed: true,
-                resume_path: result.resume_path || resume_path,
-                photo_path: result.photo_path || photo_path // Update photo_path
-            };
-            await loadStudentDashboard();
+            // Update AppState.currentUser with the new data from the server response
+            AppState.currentUser = { ...AppState.currentUser, ...updatedData, profile_completed: true, resume_path: result.resume_path || resume_path };
+            // Refresh the student list in AppState if needed for other dashboards
+            await loadStudentDashboard(); // Reload dashboard data to reflect changes
             showPage('student-dashboard');
-            showSuccess('Profile updated successfully!', 'student-profile-edit-message');
+            showSuccess('Profile updated successfully!');
         } else {
-            showError(result.message, 'student-profile-edit-message');
+            showError(result.message);
         }
     } catch (error) {
         console.error('Error updating profile:', error);
-        showError('An error occurred while updating the profile. Please try again.', 'student-profile-edit-message');
+        showError('An error occurred while updating the profile. Please try again.');
     }
 
     submitBtn.classList.remove('loading');
     submitBtn.disabled = false;
 });
 
-
-
+function toggleSemesterSection() {
+    const section = document.getElementById('semester-section');
+    section.style.display = section.style.display === 'none' ? 'block' : 'none';
+}
 
 function loadStudentJobs() {
     const student = AppState.currentUser;
@@ -696,7 +614,7 @@ function loadStudentJobs() {
         // Check if job.eligibility_courses is an array before using .includes()
         const jobEligibilityCourses = Array.isArray(job.eligibility_courses) ? job.eligibility_courses : [];
         const isEligible = jobEligibilityCourses.includes(student.course) &&
-            (student.cgpa >= (job.eligibility_min_cgpa || 0)); // Use 0 if min_cgpa is not set
+                           (student.cgpa >= (job.eligibility_min_cgpa || 0)); // Use 0 if min_cgpa is not set
 
         const matchesType = !jobType || job.type === jobType;
         const matchesDept = !department || jobEligibilityCourses.includes(department);
@@ -831,7 +749,7 @@ function openVerificationModal(role, userId) {
         <p><strong>Role:</strong> ${role.charAt(0).toUpperCase() + role.slice(1)}</p>
     `;
     document.getElementById('validity-months').value = 12;
-    document.getElementById('verification-form').onsubmit = function (e) {
+    document.getElementById('verification-form').onsubmit = function(e) {
         e.preventDefault();
         assignCredentials(role, userId);
     };
@@ -961,7 +879,7 @@ function editTnpProfile() {
     showModal('tnp-profile-edit-modal');
 }
 
-document.getElementById('tnp-profile-edit-form').addEventListener('submit', async function (e) {
+document.getElementById('tnp-profile-edit-form').addEventListener('submit', async function(e) {
     e.preventDefault();
     const submitBtn = this.querySelector('button[type="submit"]');
     submitBtn.classList.add('loading');
@@ -1364,7 +1282,7 @@ function editCompanyProfile() {
     showModal('company-profile-edit-modal');
 }
 
-document.getElementById('company-profile-edit-form').addEventListener('submit', async function (e) {
+document.getElementById('company-profile-edit-form').addEventListener('submit', async function(e) {
     e.preventDefault();
     const submitBtn = this.querySelector('button[type="submit"]');
     submitBtn.classList.add('loading');
@@ -1438,7 +1356,7 @@ document.getElementById('company-profile-edit-form').addEventListener('submit', 
     submitBtn.disabled = false;
 });
 
-document.getElementById('job-form').addEventListener('submit', async function (e) {
+document.getElementById('job-form').addEventListener('submit', async function(e) {
     e.preventDefault();
     const submitBtn = this.querySelector('button[type="submit"]');
     submitBtn.classList.add('loading');
@@ -1636,6 +1554,8 @@ document.getElementById('job-form').addEventListener('submit', async function (e
         if (result.success) {
             closeModal('job-form-modal');
             await loadCompanyDashboard(); // Reload company jobs and other data
+            await loadCompanyJobs(); // Refresh jobs list explicitly
+            showCompanySection('jobs'); // Switch to jobs section to show posted jobs
             showSuccess(result.message);
             this.reset();
             jobRequiredSkills = [];
@@ -1917,7 +1837,7 @@ function resetCollapsibleSections() {
 }
 
 let jobRequiredSkills = [];
-document.getElementById('job-required-skills').addEventListener('keydown', function (event) {
+document.getElementById('job-required-skills').addEventListener('keydown', function(event) {
     if (event.key === 'Enter' || event.key === ',') {
         event.preventDefault();
         const skillInput = this.value.trim();
@@ -1940,7 +1860,7 @@ function renderJobSkills() {
     });
 
     skillsDisplay.querySelectorAll('.remove-skill').forEach(button => {
-        button.addEventListener('click', function () {
+        button.addEventListener('click', function() {
             const skillToRemove = this.dataset.skill;
             jobRequiredSkills = jobRequiredSkills.filter(s => s !== skillToRemove);
             renderJobSkills();
@@ -2025,7 +1945,7 @@ function toggleBondDetails() {
 
 
 // Splash Screen Logic
-document.addEventListener('DOMContentLoaded', function () {
+document.addEventListener('DOMContentLoaded', function() {
     AppState.init();
     setupCollapsibleSections(); // Initialize collapsible sections on DOM load
 
@@ -2053,7 +1973,7 @@ function generateLoginCode(role) {
     return prefix + randomNum;
 }
 
-document.getElementById('check-status-form').addEventListener('submit', async function (e) {
+document.getElementById('check-status-form').addEventListener('submit', async function(e) {
     e.preventDefault();
     const submitBtn = this.querySelector('button[type="submit"]');
     submitBtn.classList.add('loading');
@@ -2095,7 +2015,7 @@ function showStatusResult(status, loginCode) {
     copyBtn.style.display = 'none';
     downloadBtn.style.display = 'none';
 
-    switch (status) {
+    switch(status) {
         case 'verified':
             resultContent.innerHTML = `
                 <div style="font-size: 48px;">✅</div>
@@ -2108,7 +2028,7 @@ function showStatusResult(status, loginCode) {
             downloadBtn.style.display = 'inline-block';
 
             // Set up copy button
-            copyBtn.onclick = function () {
+            copyBtn.onclick = function() {
                 navigator.clipboard.writeText(loginCode).then(() => {
                     showSuccess('Login code copied to clipboard!');
                 }).catch(() => {
@@ -2117,7 +2037,7 @@ function showStatusResult(status, loginCode) {
             };
 
             // Set up download button
-            downloadBtn.onclick = function () {
+            downloadBtn.onclick = function() {
                 const blob = new Blob([`CampusHire Login Credentials\n\nLogin Code: ${loginCode}\nPassword: [your registered password]`], { type: 'text/plain' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
@@ -2160,3 +2080,4 @@ function showStatusResult(status, loginCode) {
 
     showModal('status-result-modal');
 }
+

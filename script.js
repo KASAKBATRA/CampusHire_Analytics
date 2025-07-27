@@ -2,32 +2,23 @@ const AppState = {
     currentUser: null,
     students: [],
     companies: [],
-    tnpOfficers: [],
+    tnpOfficers: [], // This array is not populated by PHP, consider if needed
     jobs: [],
     applications: [],
 
     async init() {
         // Fetch current user from session
-        const response = await fetch('api/get_current_user.php');
-        const result = await response.json();
-        if (result.success) {
-            this.currentUser = result.user;
+        try {
+            const response = await fetch('api/get_current_user.php');
+            const result = await response.json();
+            if (result.success) {
+                this.currentUser = result.user;
+            }
+        } catch (error) {
+            console.error('Error fetching current user:', error);
         }
     }
 };
-
-// New PHP script: get_current_user.php
-<?php
-header('Content-Type: application/json');
-require 'config.php';
-session_start();
-
-if (isset($_SESSION['user'])) {
-    echo json_encode(['success' => true, 'user' => $_SESSION['user'], 'role' => $_SESSION['role']]);
-} else {
-    echo json_encode(['success' => false]);
-}
-?>
 
 function showPage(pageId) {
     document.querySelectorAll('.page').forEach(page => page.classList.remove('active'));
@@ -37,7 +28,7 @@ function showPage(pageId) {
     if (pageId === 'student-dashboard') loadStudentDashboard();
     else if (pageId === 'tnp-dashboard') loadTnpDashboard();
     else if (pageId === 'company-dashboard') loadCompanyDashboard();
-    else if (pageId === 'student-profile-edit-page') editStudentProfile();
+    // student-profile-edit-page is handled by editStudentProfile() directly
 }
 
 function showModal(modalId) {
@@ -55,6 +46,16 @@ function closeModal(modalId) {
         document.getElementById('login-form').reset();
         document.getElementById('login-message').innerHTML = '';
     }
+    if (modalId === 'job-form-modal') {
+        document.getElementById('job-form').reset();
+        jobRequiredSkills = [];
+        renderJobSkills();
+        resetCollapsibleSections();
+        customComponentCount = 0;
+        document.querySelectorAll('.custom-salary-component-row').forEach(row => row.remove());
+        calculateInHandSalary();
+        toggleOpportunityType(); // Reset sections visibility
+    }
 }
 
 function selectRole(role) {
@@ -68,7 +69,7 @@ function selectLoginRole(role) {
     document.getElementById('login-role').value = role;
     const emailGroup = document.getElementById('login-email-group');
     const codeGroup = document.getElementById('login-code-group');
-    
+
     if (role === 'tnp') {
         emailGroup.style.display = 'block';
         codeGroup.style.display = 'none';
@@ -80,10 +81,11 @@ function selectLoginRole(role) {
         document.getElementById('login-email').required = false;
         document.getElementById('login-code').required = true;
     }
-    
+
     closeModal('login-role-modal');
     showModal('login-modal');
 }
+
 
 function showRoleFields() {
     const role = document.getElementById('register-role').value;
@@ -106,8 +108,7 @@ function showRegister() {
     showModal('role-modal');
 }
 
-
-document.getElementById('login-form').addEventListener('submit', async function(e) {
+document.getElementById('login-form').addEventListener('submit', async function (e) {
     e.preventDefault();
     const submitBtn = this.querySelector('button[type="submit"]');
     submitBtn.classList.add('loading');
@@ -143,6 +144,7 @@ document.getElementById('login-form').addEventListener('submit', async function(
             showError(result.message, 'login-message');
         }
     } catch (error) {
+        console.error('Login error:', error);
         showError('An error occurred. Please try again.', 'login-message');
     }
 
@@ -151,7 +153,7 @@ document.getElementById('login-form').addEventListener('submit', async function(
 });
 
 
-document.getElementById('register-form').addEventListener('submit', async function(e) {
+document.getElementById('register-form').addEventListener('submit', async function (e) {
     e.preventDefault();
     const submitBtn = this.querySelector('button[type="submit"]');
     submitBtn.classList.add('loading');
@@ -171,7 +173,7 @@ document.getElementById('register-form').addEventListener('submit', async functi
         userData.employeeId = document.getElementById('register-employee-id').value.trim();
         userData.position = document.getElementById('register-position').value;
         userData.department = document.getElementById('register-department-tnp').value;
-        userData.phone = document.getElementById('register-phone-tnp').value.trim();
+        userData.phone = document.getElementById('register-phone-tnp').value.trim(); // Use T&P specific phone field
     } else if (userData.role === 'company') {
         userData.hrId = document.getElementById('register-hr-id').value.trim();
         userData.companyName = document.getElementById('register-company-name').value.trim();
@@ -189,14 +191,16 @@ document.getElementById('register-form').addEventListener('submit', async functi
 
         if (result.success) {
             showSuccess(result.message, 'register-message');
-            closeModal('register-modal');
-            showLogin();
+            // closeModal('register-modal'); // Keep modal open to show success message
+            // showLogin(); // Don't immediately show login, let user read message
             this.reset();
             document.querySelectorAll('.role-fields').forEach(field => field.classList.remove('active'));
+            setTimeout(() => closeModal('register-modal'), 2000); // Close after 2 seconds
         } else {
             showError(result.message, 'register-message');
         }
     } catch (error) {
+        console.error('Registration error:', error);
         showError('An error occurred. Please try again.', 'register-message');
     }
 
@@ -210,7 +214,7 @@ function showSuccess(message, targetId = 'register-message') {
     const msgDiv = document.getElementById(targetId);
     if (msgDiv) {
         msgDiv.innerHTML = `<div class="success-message">${message}</div>`;
-        setTimeout(() => { msgDiv.innerHTML = ''; }, 3000);
+        // setTimeout(() => { msgDiv.innerHTML = ''; }, 3000); // Removed to allow message to stay
     } else {
         const successDiv = document.createElement('div');
         successDiv.className = 'success-message';
@@ -224,7 +228,7 @@ function showError(message, targetId = 'register-message') {
     const msgDiv = document.getElementById(targetId);
     if (msgDiv) {
         msgDiv.innerHTML = `<div class="error-message">${message}</div>`;
-        setTimeout(() => { msgDiv.innerHTML = ''; }, 3000);
+        // setTimeout(() => { msgDiv.innerHTML = ''; }, 3000); // Removed to allow message to stay
     } else {
         const errorDiv = document.createElement('div');
         errorDiv.className = 'error-message';
@@ -234,9 +238,21 @@ function showError(message, targetId = 'register-message') {
     }
 }
 
-function logout() {
-    AppState.logout();
-    showPage('landing-page');
+async function logout() {
+    try {
+        const response = await fetch('api/logout.php');
+        const result = await response.json();
+        if (result.success) {
+            AppState.currentUser = null;
+            showPage('landing-page');
+            showSuccess('Logged out successfully!');
+        } else {
+            showError('Logout failed.');
+        }
+    } catch (error) {
+        console.error('Logout error:', error);
+        showError('An error occurred during logout.');
+    }
 }
 
 async function loadStudentDashboard() {
@@ -246,13 +262,12 @@ async function loadStudentDashboard() {
     }
 
     try {
-        const response = await fetch('api/students.php');
-        const result = await response.json();
-        if (result.success) {
-            AppState.students = result.data;
-            showStudentSection('profile');
-        } else {
-            showError(result.message);
+        const studentsResponse = await fetch('api/students.php');
+        const studentsResult = await studentsResponse.json();
+        if (studentsResult.success) {
+            AppState.students = studentsResult.data;
+            // Update current user with full student details from the fetched list
+            AppState.currentUser = AppState.students.find(s => s.id === AppState.currentUser.id) || AppState.currentUser;
         }
 
         const jobsResponse = await fetch('api/jobs.php');
@@ -266,7 +281,9 @@ async function loadStudentDashboard() {
         if (applicationsResult.success) {
             AppState.applications = applicationsResult.data;
         }
+        showStudentSection('profile');
     } catch (error) {
+        console.error('Error loading student dashboard:', error);
         showError('An error occurred while loading the dashboard.');
     }
 }
@@ -304,6 +321,7 @@ async function loadTnpDashboard() {
 
         showTnpSection('profile');
     } catch (error) {
+        console.error('Error loading T&P dashboard:', error);
         showError('An error occurred while loading the dashboard.');
     }
 }
@@ -335,6 +353,7 @@ async function loadCompanyDashboard() {
 
         showCompanySection('profile');
     } catch (error) {
+        console.error('Error loading company dashboard:', error);
         showError('An error occurred while loading the dashboard.');
     }
 }
@@ -360,106 +379,176 @@ function loadStudentProfile() {
     document.getElementById('student-cgpa').textContent = `CGPA: ${student.cgpa || 'N/A'}`;
     document.getElementById('student-phone').textContent = `Phone: ${student.phone || '-'}`;
 
-    const skillsDropdown = document.getElementById('student-skills-dropdown');
-    if (skillsDropdown && student.skills) {
-        Array.from(skillsDropdown.options).forEach(option => {
-            option.selected = student.skills.includes(option.value);
-        });
-    }
 
-    const applications = AppState.applications.filter(a => a.studentId === student.id);
+    const applications = AppState.applications.filter(a => a.student_id === student.id);
     document.getElementById('applications-count').textContent = applications.length;
     document.getElementById('interviews-count').textContent = applications.filter(a => a.status === 'accepted').length;
     document.getElementById('offers-count').textContent = student.placement ? 1 : 0;
 }
 
+// Inside MultipleFiles/script.js
+
+// ... (existing code) ...
+
 function editStudentProfile() {
     const student = AppState.currentUser;
     if (!student || student.role !== 'student') {
-        showError('Error: No student logged in.');
+        showError('Error: No student logged in.', 'student-profile-edit-message'); // Use specific message div
         return;
     }
+
+    // Clear previous messages
+    document.getElementById('student-profile-edit-message').innerHTML = '';
 
     document.getElementById('edit-student-name').value = student.name || '';
     document.getElementById('edit-student-phone').value = student.phone || '';
     document.getElementById('edit-student-github').value = student.github || '';
-    document.getElementById('edit-student-linkedin').value = student.linkedIn || '';
+    document.getElementById('edit-student-linkedin').value = student.linkedin || '';
     document.getElementById('edit-student-overall-cgpa').value = student.cgpa || '';
-    document.getElementById('edit-student-10th').value = student.tenth || '';
-    document.getElementById('edit-student-12th').value = student.twelfth || '';
+    document.getElementById('edit-student-10th').value = student.tenth_percentage || '';
+    document.getElementById('edit-student-12th').value = student.twelfth_percentage || '';
     document.getElementById('edit-student-interest').value = student.interest || '';
-    document.getElementById('edit-student-grad-year').value = student.gradYear || '';
+    document.getElementById('edit-student-grad-year').value = student.grad_year || '';
+
+    // Handle photo upload
+    const photoInput = document.getElementById('edit-student-photo');
+    const photoPreview = document.getElementById('photo-preview');
+    photoPreview.textContent = student.photo_path ? `Current photo: ${student.photo_path.split('/').pop()}` : 'No photo uploaded';
+
+    if (photoInput._handler) {
+        photoInput.removeEventListener('change', photoInput._handler);
+    }
+    const newPhotoInputHandler = function () {
+        photoPreview.textContent = this.files[0] ? `Selected: ${this.files[0].name}` : 'No file selected';
+    };
+    photoInput.addEventListener('change', newPhotoInputHandler);
+    photoInput._handler = newPhotoInputHandler;
 
     const skillsSelect = document.getElementById('edit-student-skills');
     const selectedSkillsDisplay = document.getElementById('selected-skills-display');
-    selectedSkillsDisplay.innerHTML = '';
+    selectedSkillsDisplay.innerHTML = ''; // Clear previous tags
 
+    // Deselect all options in the dropdown first
     Array.from(skillsSelect.options).forEach(option => {
         option.selected = false;
     });
 
+    // Populate selected skills and display as tags
     if (student.skills && student.skills.length > 0) {
         student.skills.forEach(skill => {
             const option = Array.from(skillsSelect.options).find(opt => opt.value === skill);
             if (option) {
-                option.selected = true;
+                option.selected = true; // Select in dropdown if it exists
             }
-            const skillTag = document.createElement('span');
-            skillTag.className = 'skill-tag';
-            skillTag.textContent = skill;
-            selectedSkillsDisplay.appendChild(skillTag);
+            // Always add as a tag, even if it's a custom skill not in dropdown
+            addSkillTagToDisplay(skill, selectedSkillsDisplay);
         });
     }
 
     const addCustomSkillBtn = document.getElementById('add-custom-skill-btn');
     const customSkillInput = document.getElementById('edit-student-custom-skill');
 
+    // Remove previous event listener to prevent multiple bindings
+    if (addCustomSkillBtn._handler) {
+        addCustomSkillBtn.removeEventListener('click', addCustomSkillBtn._handler);
+    }
+
     const newAddCustomSkillBtnHandler = () => {
         const customSkill = customSkillInput.value.trim();
-        if (customSkill && !student.skills.includes(customSkill)) {
-            student.skills.push(customSkill);
-            const skillTag = document.createElement('span');
-            skillTag.className = 'skill-tag';
-            skillTag.textContent = customSkill;
-            selectedSkillsDisplay.appendChild(skillTag);
-            customSkillInput.value = '';
-        } else if (student.skills.includes(customSkill)) {
-            showError('Skill already added.');
+        if (customSkill) {
+            // Check if skill already exists in selected skills (either from dropdown or custom)
+            const currentSkills = Array.from(selectedSkillsDisplay.querySelectorAll('.skill-tag')).map(tag => tag.textContent.replace(' ×', '').trim());
+            if (!currentSkills.includes(customSkill)) {
+                addSkillTagToDisplay(customSkill, selectedSkillsDisplay);
+                customSkillInput.value = '';
+            } else {
+                showError('Skill already added.', 'student-profile-edit-message');
+            }
         }
     };
-    addCustomSkillBtn.removeEventListener('click', addCustomSkillBtn._handler);
     addCustomSkillBtn.addEventListener('click', newAddCustomSkillBtnHandler);
-    addCustomSkillBtn._handler = newAddCustomSkillBtnHandler;
+    addCustomSkillBtn._handler = newAddCustomSkillBtnHandler; // Store reference to handler
 
+    // Handle removal of skills from display tags
+    selectedSkillsDisplay.addEventListener('click', function (event) {
+        if (event.target.classList.contains('remove-skill')) {
+            const skillToRemove = event.target.dataset.skill;
+            event.target.closest('.skill-tag').remove(); // Remove the tag from display
+
+            // Also deselect from the dropdown if it was a dropdown skill
+            const option = Array.from(skillsSelect.options).find(opt => opt.value === skillToRemove);
+            if (option) {
+                option.selected = false;
+            }
+        }
+    });
+
+    // Handle adding skills from dropdown to display tags
+    skillsSelect.addEventListener('change', function () {
+        const currentlySelectedDropdownSkills = Array.from(this.selectedOptions).map(option => option.value);
+        const currentDisplayedSkills = Array.from(selectedSkillsDisplay.querySelectorAll('.skill-tag')).map(tag => tag.textContent.replace(' ×', '').trim());
+
+        // Add newly selected dropdown skills to display if not already there
+        currentlySelectedDropdownSkills.forEach(skill => {
+            if (!currentDisplayedSkills.includes(skill)) {
+                addSkillTagToDisplay(skill, selectedSkillsDisplay);
+            }
+        });
+
+        // Remove skills from display if they were deselected in dropdown
+        currentDisplayedSkills.forEach(displayedSkill => {
+            const isFromDropdown = Array.from(skillsSelect.options).some(opt => opt.value === displayedSkill);
+            if (isFromDropdown && !currentlySelectedDropdownSkills.includes(displayedSkill)) {
+                selectedSkillsDisplay.querySelector(`.skill-tag button[data-skill="${displayedSkill}"]`).closest('.skill-tag').remove();
+            }
+        });
+    });
+
+    // Removed semester CGPA section
     const semesterContainer = document.getElementById('semester-cgpa-container');
-    semesterContainer.innerHTML = '';
-    const semesters = student.cgpaSemesters || [];
-    const maxSemesters = (student.year || 1) * 2;
-    for (let i = 1; i <= maxSemesters; i++) {
-        semesterContainer.innerHTML += `
-            <div class="form-group">
-                <label for="edit-semester-${i}">Semester ${i}</label>
-                <input type="number" step="0.1" min="0" max="10" id="edit-semester-${i}" value="${semesters[i-1] || ''}" required>
-            </div>
-        `;
+    if (semesterContainer) {
+        semesterContainer.innerHTML = ''; // Clear any existing content
     }
+
 
     const resumeInput = document.getElementById('edit-student-resume');
     const resumePreview = document.getElementById('resume-preview');
-    resumePreview.textContent = student.resume ? 'Current resume uploaded' : 'No resume uploaded';
-    const newResumeInputHandler = function() {
+    resumePreview.textContent = student.resume_path ? `Current resume: ${student.resume_path.split('/').pop()}` : 'No resume uploaded';
+
+    if (resumeInput._handler) {
+        resumeInput.removeEventListener('change', resumeInput._handler);
+    }
+
+    const newResumeInputHandler = function () {
         resumePreview.textContent = this.files[0] ? `Selected: ${this.files[0].name}` : 'No file selected';
     };
-    resumeInput.removeEventListener('change', resumeInput._handler);
     resumeInput.addEventListener('change', newResumeInputHandler);
     resumeInput._handler = newResumeInputHandler;
+
+    // Re-initialize collapsible sections on this page
+    setupCollapsibleSections();
+    resetCollapsibleSections(); // Ensure they are closed initially
+
+    showPage('student-profile-edit-page');
 }
 
-document.getElementById('student-profile-edit-form').addEventListener('submit', function(e) {
+// Helper function to add a skill tag to the display
+function addSkillTagToDisplay(skill, container) {
+    const skillTag = document.createElement('span');
+    skillTag.className = 'skill-tag';
+    skillTag.innerHTML = `${skill} <button type="button" class="remove-skill" data-skill="${skill}">×</button>`;
+    container.appendChild(skillTag);
+}
+
+
+document.getElementById('student-profile-edit-form').addEventListener('submit', async function (e) {
     e.preventDefault();
     const submitBtn = this.querySelector('button[type="submit"]');
     submitBtn.classList.add('loading');
     submitBtn.disabled = true;
+
+    // Clear previous messages
+    document.getElementById('student-profile-edit-message').innerHTML = '';
 
     if (!confirm('Are you sure you want to save these changes?')) {
         submitBtn.classList.remove('loading');
@@ -469,100 +558,134 @@ document.getElementById('student-profile-edit-form').addEventListener('submit', 
 
     const currentUser = AppState.currentUser;
 
-    try {
-        currentUser.name = document.getElementById('edit-student-name').value.trim();
-        currentUser.phone = document.getElementById('edit-student-phone').value.trim();
-        currentUser.github = document.getElementById('edit-student-github').value.trim();
-        currentUser.linkedIn = document.getElementById('edit-student-linkedin').value.trim();
-        currentUser.cgpa = parseFloat(document.getElementById('edit-student-overall-cgpa').value) || 0;
-        currentUser.tenth = parseFloat(document.getElementById('edit-student-10th').value) || 0;
-        currentUser.twelfth = parseFloat(document.getElementById('edit-student-12th').value) || 0;
-        currentUser.interest = document.getElementById('edit-student-interest').value.trim();
-        currentUser.gradYear = parseInt(document.getElementById('edit-student-grad-year').value) || 0;
+    const updatedData = {
+        id: currentUser.id,
+        name: document.getElementById('edit-student-name').value.trim(),
+        phone: document.getElementById('edit-student-phone').value.trim(),
+        github: document.getElementById('edit-student-github').value.trim(),
+        linkedin: document.getElementById('edit-student-linkedin').value.trim(),
+        cgpa: parseFloat(document.getElementById('edit-student-overall-cgpa').value) || 0,
+        tenth_percentage: parseFloat(document.getElementById('edit-student-10th').value) || 0,
+        twelfth_percentage: parseFloat(document.getElementById('edit-student-12th').value) || 0,
+        interest: document.getElementById('edit-student-interest').value.trim(),
+        grad_year: parseInt(document.getElementById('edit-student-grad-year').value) || 0,
+    };
 
-        const selectedDropdownSkills = Array.from(document.getElementById('edit-student-skills').selectedOptions).map(opt => opt.value);
-        const currentCustomSkills = Array.from(document.getElementById('selected-skills-display').children)
-                                    .map(tag => tag.textContent.replace(' ×', '').trim());
-        currentUser.skills = [...new Set([...selectedDropdownSkills, ...currentCustomSkills])];
+    // Collect skills from the displayed tags
+    const selectedSkillsDisplay = document.getElementById('selected-skills-display');
+    updatedData.skills = Array.from(selectedSkillsDisplay.querySelectorAll('.skill-tag')).map(tag => tag.textContent.replace(' ×', '').trim());
 
-        if (!currentUser.name || !currentUser.phone || !currentUser.github || !currentUser.linkedIn || !currentUser.cgpa || !currentUser.tenth || !currentUser.twelfth || !currentUser.interest || !currentUser.gradYear || currentUser.skills.length === 0) {
-            showError('Please fill in all required fields.');
-            submitBtn.classList.remove('loading');
-            submitBtn.disabled = false;
-            return;
-        }
+    // Basic validation
+    if (!updatedData.name || !updatedData.phone || !updatedData.github || !updatedData.linkedin || !updatedData.interest || !updatedData.grad_year || updatedData.skills.length === 0) {
+        showError('Please fill in all required fields.', 'student-profile-edit-message');
+        submitBtn.classList.remove('loading');
+        submitBtn.disabled = false;
+        return;
+    }
+    if (updatedData.cgpa === 0 || updatedData.tenth_percentage === 0 || updatedData.twelfth_percentage === 0) {
+        showError('CGPA and percentages cannot be zero. Please enter valid values.', 'student-profile-edit-message');
+        submitBtn.classList.remove('loading');
+        submitBtn.disabled = false;
+        return;
+    }
 
-        if (!/^\+[0-9]{1,3}[0-9]{10}$/.test(currentUser.phone)) {
-            showError('Phone number must include country code (e.g., +919876543210).');
-            submitBtn.classList.remove('loading');
-            submitBtn.disabled = false;
-            return;
-        }
+    if (!/^\+[0-9]{1,3}[0-9]{10}$/.test(updatedData.phone)) {
+        showError('Phone number must include country code (e.g., +919876543210).', 'student-profile-edit-message');
+        submitBtn.classList.remove('loading');
+        submitBtn.disabled = false;
+        return;
+    }
+    if (!/^https?:\/\/(www\.)?github\.com\//i.test(updatedData.github)) {
+        showError('Please enter a valid GitHub profile URL.', 'student-profile-edit-message');
+        submitBtn.classList.remove('loading');
+        submitBtn.disabled = false;
+        return;
+    }
+    if (!/^https?:\/\/(www\.)?linkedin\.com\/in\//i.test(updatedData.linkedin)) {
+        showError('Please enter a valid LinkedIn profile URL.', 'student-profile-edit-message');
+        submitBtn.classList.remove('loading');
+        submitBtn.disabled = false;
+        return;
+    }
 
-        currentUser.cgpaSemesters = [];
-        const maxSemesters = (currentUser.year || 1) * 2;
-        for (let i = 1; i <= maxSemesters; i++) {
-            const value = parseFloat(document.getElementById(`edit-semester-${i}`).value) || 0;
-            if (value <= 0 || value > 10) {
-                showError(`Invalid CGPA for Semester ${i}. Must be between 0 and 10.`);
-                submitBtn.classList.remove('loading');
-                submitBtn.disabled = false;
-                return;
-            }
-            currentUser.cgpaSemesters.push(value);
-        }
+    // Removed semester CGPA collection
+    updatedData.cgpaSemesters = {}; // Ensure this is empty or removed from payload if not needed on backend
 
-        const resumeInput = document.getElementById('edit-student-resume');
-        const file = resumeInput.files[0];
+    const resumeInput = document.getElementById('edit-student-resume');
+    const resumeFile = resumeInput.files[0];
+    let resume_path = currentUser.resume_path;
 
-        if (file) {
-            if (file.type !== 'application/pdf') {
-                showError('Please upload a valid PDF file for the resume.');
-                submitBtn.classList.remove('loading');
-                submitBtn.disabled = false;
-                return;
-            }
-            const reader = new FileReader();
-            reader.onload = function() {
-                currentUser.resume = reader.result;
-                finishUpdate();
-            };
-            reader.onerror = function() {
-                showError('Error reading the resume file.');
-                submitBtn.classList.remove('loading');
-                submitBtn.disabled = false;
-            };
-            reader.readAsDataURL(file);
+    const photoInput = document.getElementById('edit-student-photo');
+    const photoFile = photoInput.files[0];
+    let photo_path = currentUser.photo_path;
+
+    const formData = new FormData();
+    for (const key in updatedData) {
+        if (key === 'skills' || key === 'cgpaSemesters') {
+            formData.append(key, JSON.stringify(updatedData[key]));
         } else {
-            finishUpdate();
+            formData.append(key, updatedData[key]);
         }
+    }
 
-        function finishUpdate() {
-            currentUser.profileCompleted = true;
-            const index = AppState.students.findIndex(s => s.id === currentUser.id);
-            if (index !== -1) {
-                AppState.students[index] = currentUser;
-            }
-            AppState.saveToStorage();
-            localStorage.setItem('currentUser', JSON.stringify(currentUser));
-            showPage('student-dashboard');
-            loadStudentDashboard();
-            showSuccess('Profile updated successfully!');
+    if (resumeFile) {
+        if (resumeFile.type !== 'application/pdf') {
+            showError('Please upload a valid PDF file for the resume.', 'student-profile-edit-message');
             submitBtn.classList.remove('loading');
             submitBtn.disabled = false;
+            return;
+        }
+        formData.append('resume', resumeFile);
+    } else if (!currentUser.resume_path) { // If no new file and no existing resume
+        showError('Please upload your resume.', 'student-profile-edit-message');
+        submitBtn.classList.remove('loading');
+        submitBtn.disabled = false;
+        return;
+    }
+
+    if (photoFile) {
+        if (!photoFile.type.startsWith('image/')) {
+            showError('Please upload a valid image file for the profile photo.', 'student-profile-edit-message');
+            submitBtn.classList.remove('loading');
+            submitBtn.disabled = false;
+            return;
+        }
+        formData.append('photo', photoFile);
+    }
+
+
+    try {
+        const response = await fetch('api/update_student_profile.php', {
+            method: 'POST',
+            body: formData
+        });
+        const result = await response.json();
+
+        if (result.success) {
+            AppState.currentUser = {
+                ...AppState.currentUser,
+                ...updatedData,
+                profile_completed: true,
+                resume_path: result.resume_path || resume_path,
+                photo_path: result.photo_path || photo_path // Update photo_path
+            };
+            await loadStudentDashboard();
+            showPage('student-dashboard');
+            showSuccess('Profile updated successfully!', 'student-profile-edit-message');
+        } else {
+            showError(result.message, 'student-profile-edit-message');
         }
     } catch (error) {
         console.error('Error updating profile:', error);
-        showError('An error occurred while updating the profile. Please try again.');
-        submitBtn.classList.remove('loading');
-        submitBtn.disabled = false;
+        showError('An error occurred while updating the profile. Please try again.', 'student-profile-edit-message');
     }
+
+    submitBtn.classList.remove('loading');
+    submitBtn.disabled = false;
 });
 
-function toggleSemesterSection() {
-    const section = document.getElementById('semester-section');
-    section.style.display = section.style.display === 'none' ? 'block' : 'none';
-}
+
+
 
 function loadStudentJobs() {
     const student = AppState.currentUser;
@@ -570,10 +693,13 @@ function loadStudentJobs() {
     const department = document.getElementById('department-filter').value;
 
     const jobs = AppState.jobs.filter(job => {
-        const isEligible = (job.eligibility && job.eligibility.preferredCourses && job.eligibility.preferredCourses.includes(student.course)) &&
-                           (job.eligibility && student.cgpa >= job.eligibility.minCgpa);
+        // Check if job.eligibility_courses is an array before using .includes()
+        const jobEligibilityCourses = Array.isArray(job.eligibility_courses) ? job.eligibility_courses : [];
+        const isEligible = jobEligibilityCourses.includes(student.course) &&
+            (student.cgpa >= (job.eligibility_min_cgpa || 0)); // Use 0 if min_cgpa is not set
+
         const matchesType = !jobType || job.type === jobType;
-        const matchesDept = !department || (job.eligibility && job.eligibility.preferredCourses && job.eligibility.preferredCourses.includes(department));
+        const matchesDept = !department || jobEligibilityCourses.includes(department);
         const isActive = job.deadline ? new Date(job.deadline) >= new Date() : true;
 
         return isEligible && matchesType && matchesDept && isActive;
@@ -582,10 +708,10 @@ function loadStudentJobs() {
     const jobsGrid = document.getElementById('jobs-grid');
     jobsGrid.innerHTML = jobs.length > 0 ? jobs.map(job => {
         const displayTitle = job.type === 'job' ? job.title : job.position;
-        const displayPackage = job.type === 'job' ? `${job.salary.totalCtc} LPA` : `${job.stipend} /month`;
-        const displayLocation = job.type === 'job' ? job.locations.join(', ') : 'N/A';
-        const displayMinCgpa = job.eligibility ? job.eligibility.minCgpa : 'N/A';
-        const displaySkills = job.skills ? job.skills.map(skill => `<span class="skill-tag">${skill}</span>`).join('') : '';
+        const displayPackage = job.type === 'job' ? `${job.salary_ctc || 'N/A'} LPA` : `${job.stipend || 'N/A'} /month`;
+        const displayLocation = Array.isArray(job.locations) ? job.locations.join(', ') : 'N/A';
+        const displayMinCgpa = job.eligibility_min_cgpa || 'N/A';
+        const displaySkills = Array.isArray(job.skills) ? job.skills.map(skill => `<span class="skill-tag">${skill}</span>`).join('') : '';
         const displayDeadline = job.deadline || 'N/A';
 
         return `
@@ -593,7 +719,7 @@ function loadStudentJobs() {
                 <div class="job-header">
                     <div>
                         <h3 class="job-title">${displayTitle}</h3>
-                        <p class="job-company">${job.companyName}</p>
+                        <p class="job-company">${job.company_name || 'N/A'}</p>
                     </div>
                     <span class="job-type ${job.type}">${job.type.charAt(0).toUpperCase() + job.type.slice(1)}</span>
                 </div>
@@ -630,12 +756,24 @@ async function applyJob(jobId) {
 
         if (result.success) {
             showSuccess(result.message);
+            // Reload applications and jobs to reflect the new application status
+            const applicationsResponse = await fetch('api/applications.php');
+            const applicationsResult = await applicationsResponse.json();
+            if (applicationsResult.success) {
+                AppState.applications = applicationsResult.data;
+            }
+            const jobsResponse = await fetch('api/jobs.php');
+            const jobsResult = await jobsResponse.json();
+            if (jobsResult.success) {
+                AppState.jobs = jobsResult.data;
+            }
             loadStudentJobs();
             loadStudentApplications();
         } else {
             showError(result.message);
         }
     } catch (error) {
+        console.error('Error applying for job:', error);
         showError('An error occurred while applying for the job.');
     }
 }
@@ -643,15 +781,15 @@ async function applyJob(jobId) {
 
 function loadStudentApplications() {
     const student = AppState.currentUser;
-    const applications = AppState.applications.filter(a => a.studentId === student.id);
+    const applications = AppState.applications.filter(a => a.student_id === student.id); // Corrected field name
 
     const applicationsList = document.getElementById('applications-list');
     applicationsList.innerHTML = applications.length > 0 ? applications.map(app => {
-        const job = AppState.jobs.find(j => j.id === app.jobId);
+        const job = AppState.jobs.find(j => j.id === app.job_id); // Corrected field name
         if (!job) return '';
 
         const displayTitle = job.type === 'job' ? job.title : job.position;
-        const displayCompany = job.companyName;
+        const displayCompany = job.company_name || 'N/A'; // Corrected field name
 
         return `
             <div class="application-card">
@@ -665,11 +803,11 @@ function loadStudentApplications() {
                 <div class="application-details">
                     <div class="application-detail">
                         <strong>Applied On:</strong>
-                        <span>${app.appliedDate}</span>
+                        <span>${app.applied_date}</span>
                     </div>
                     <div class="application-detail">
                         <strong>Cover Letter:</strong>
-                        <span>${app.coverLetter.substring(0, 100)}...</span>
+                        <span>${app.cover_letter.substring(0, 100)}...</span>
                     </div>
                 </div>
             </div>
@@ -677,35 +815,23 @@ function loadStudentApplications() {
     }).join('') : '<div class="empty-state"><h4>No Applications</h4><p>You haven\'t applied to any jobs yet.</p></div>';
 }
 
-function loadTnpDashboard() {
-    if (!AppState.currentUser || AppState.currentUser.role !== 'tnp') {
-        showPage('landing-page');
-        return;
-    }
-
-    showTnpSection('profile');
-}
 
 // Open verification modal for T&P to assign credentials
 function openVerificationModal(role, userId) {
-    const user = (role === 'student' ? AppState.students : AppState.companies).find(u => u.id === userId);
+    const userList = role === 'student' ? AppState.students : AppState.companies;
+    const user = userList.find(u => u.id === userId);
     if (!user) {
         alert('User not found.');
         return;
     }
-    
-    // Generate a login code if not already set
-    const loginCode = user.loginCode || generateLoginCode(role);
-    
+
     document.getElementById('verification-user-info').innerHTML = `
         <p><strong>Name:</strong> ${user.name}</p>
         <p><strong>Email:</strong> ${user.email}</p>
         <p><strong>Role:</strong> ${role.charAt(0).toUpperCase() + role.slice(1)}</p>
     `;
-    document.getElementById('login-code').value = loginCode;
-    document.getElementById('login-password-assign').value = '';
     document.getElementById('validity-months').value = 12;
-    document.getElementById('verification-form').onsubmit = function(e) {
+    document.getElementById('verification-form').onsubmit = function (e) {
         e.preventDefault();
         assignCredentials(role, userId);
     };
@@ -713,67 +839,75 @@ function openVerificationModal(role, userId) {
 }
 
 async function assignCredentials(role, userId) {
-    const loginCode = document.getElementById('login-code').value.trim();
-    const password = document.getElementById('login-password-assign').value.trim();
     const validityMonths = parseInt(document.getElementById('validity-months').value);
 
     try {
         const response = await fetch('api/verify_user.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ role, userId, loginCode, password, validityMonths })
+            body: JSON.stringify({ role, userId, validityMonths })
         });
         const result = await response.json();
 
         if (result.success) {
             closeModal('verification-modal');
-            showAssignedCredentials(result.loginCode, result.password, new Date(result.expiryDate));
-            if (role === 'student') loadTnpStudents();
-            else loadTnpCompanies();
+            showAssignedCredentials(result.loginCode, result.expiryDate);
+            if (role === 'student') {
+                await loadTnpDashboard();
+                loadTnpStudents();
+            } else {
+                await loadTnpDashboard();
+                loadTnpCompanies();
+            }
+            showSuccess('User verified successfully!');
         } else {
-            alert(result.message);
+            showError(result.message);
         }
     } catch (error) {
-        alert('An error occurred while verifying the user.');
+        console.error('Error assigning credentials:', error);
+        showError('An error occurred while verifying the user.');
     }
 }
 
 // Show assigned credentials with copy and print options
-function showAssignedCredentials(code, password, expiryDate) {
+// Modified to only accept loginCode and expiryDate
+function showAssignedCredentials(code, expiryDate) {
     const displayDiv = document.getElementById('credentials-display');
     displayDiv.innerHTML = `
         <p><strong>Login Code:</strong> <span id="cred-login-code">${code}</span></p>
-        <p><strong>Password:</strong> <span id="cred-password">${password}</span></p>
-        <p><strong>Valid Until:</strong> ${expiryDate.toDateString()}</p>
+        <p><strong>Valid Until:</strong> ${new Date(expiryDate).toDateString()}</p>
+        <p class="text-muted">The user's original password remains unchanged.</p>
     `;
     showModal('credentials-modal');
 }
 
+
 // Copy credentials to clipboard
 function copyCredentials() {
     const code = document.getElementById('cred-login-code').textContent;
-    const password = document.getElementById('cred-password').textContent;
-    const textToCopy = `Login Code: ${code}\nPassword: ${password}`;
+    // Removed password from copy
+    const textToCopy = `Login Code: ${code}`;
     navigator.clipboard.writeText(textToCopy).then(() => {
-        alert('Credentials copied to clipboard.');
+        showSuccess('Login code copied to clipboard.');
     }).catch(() => {
-        alert('Failed to copy credentials.');
+        showError('Failed to copy login code.');
     });
 }
 
 // Print or save credentials
 function printCredentials() {
     const code = document.getElementById('cred-login-code').textContent;
-    const password = document.getElementById('cred-password').textContent;
+    // Removed password from print
     const printWindow = window.open('', '', 'width=400,height=300');
-    printWindow.document.write(`<pre>Login Code: ${code}\nPassword: ${password}</pre>`);
+    printWindow.document.write(`<pre>Login Code: ${code}\n(User's original password)</pre>`);
     printWindow.document.close();
     printWindow.focus();
     printWindow.print();
     printWindow.close();
 }
 
-// Toggle block/unblock user status
+
+// Toggle block/unblock user status (This functionality is not implemented in PHP, only client-side simulation)
 function toggleBlockUser(role, userId) {
     const userList = role === 'student' ? AppState.students : AppState.companies;
     const userIndex = userList.findIndex(u => u.id === userId);
@@ -781,10 +915,12 @@ function toggleBlockUser(role, userId) {
         alert('User not found.');
         return;
     }
-    userList[userIndex].isBlocked = !userList[userIndex].isBlocked;
-    AppState.saveToStorage();
+    // This is a client-side only change. To persist, you'd need a backend API.
+    userList[userIndex].status = userList[userIndex].status === 'blocked' ? 'verified' : 'blocked';
+    // AppState.saveToStorage(); // No longer using local storage for main data
     if (role === 'student') loadTnpStudents();
     else loadTnpCompanies();
+    showSuccess(`User status updated to ${userList[userIndex].status}. (Client-side only)`);
 }
 
 function showTnpSection(section) {
@@ -805,9 +941,9 @@ function loadTnpProfile() {
     const tnp = AppState.currentUser;
     document.getElementById('tnp-name').textContent = tnp.name;
     document.getElementById('tnp-email').textContent = tnp.email;
-    document.getElementById('tnp-position').textContent = `Position: ${tnp.position}`;
-    document.getElementById('tnp-department').textContent = `Department: ${tnp.department}`;
-    document.getElementById('tnp-employee-id').textContent = `Employee ID: ${tnp.employeeId}`;
+    document.getElementById('tnp-position').textContent = `Position: ${tnp.position || 'N/A'}`;
+    document.getElementById('tnp-department').textContent = `Department: ${tnp.department || 'N/A'}`;
+    document.getElementById('tnp-employee-id').textContent = `Employee ID: ${tnp.employee_id || 'N/A'}`; // Corrected field name
     document.getElementById('tnp-phone').textContent = `Phone: ${tnp.phone || '-'}`;
 
     document.getElementById('managed-students').textContent = AppState.students.length;
@@ -817,15 +953,15 @@ function loadTnpProfile() {
 
 function editTnpProfile() {
     const tnp = AppState.currentUser;
-    document.getElementById('edit-tnp-name').value = tnp.name;
-    document.getElementById('edit-tnp-employee-id').value = tnp.employeeId;
-    document.getElementById('edit-tnp-position').value = tnp.position;
-    document.getElementById('edit-tnp-department').value = tnp.department;
+    document.getElementById('edit-tnp-name').value = tnp.name || '';
+    document.getElementById('edit-tnp-employee-id').value = tnp.employee_id || ''; // Corrected field name
+    document.getElementById('edit-tnp-position').value = tnp.position || '';
+    document.getElementById('edit-tnp-department').value = tnp.department || '';
     document.getElementById('edit-tnp-phone').value = tnp.phone || '';
     showModal('tnp-profile-edit-modal');
 }
 
-document.getElementById('tnp-profile-edit-form').addEventListener('submit', function(e) {
+document.getElementById('tnp-profile-edit-form').addEventListener('submit', async function (e) {
     e.preventDefault();
     const submitBtn = this.querySelector('button[type="submit"]');
     submitBtn.classList.add('loading');
@@ -840,42 +976,62 @@ document.getElementById('tnp-profile-edit-form').addEventListener('submit', func
     const tnp = AppState.currentUser;
     const newEmployeeId = document.getElementById('edit-tnp-employee-id').value.trim();
 
-    if (newEmployeeId !== tnp.employeeId && AppState.tnpOfficers.some(t => t.employeeId === newEmployeeId)) {
-        showError('Employee ID already exists.');
-        submitBtn.classList.remove('loading');
-        submitBtn.disabled = false;
-        return;
-    }
+    // This check is client-side only. For robust validation, it should be on the server.
+    // AppState.tnpOfficers is not populated by PHP, so this check won't work as intended.
+    // if (newEmployeeId !== tnp.employee_id && AppState.tnpOfficers.some(t => t.employee_id === newEmployeeId)) {
+    //     showError('Employee ID already exists.');
+    //     submitBtn.classList.remove('loading');
+    //     submitBtn.disabled = false;
+    //     return;
+    // }
 
-    tnp.name = document.getElementById('edit-tnp-name').value.trim();
-    tnp.employeeId = newEmployeeId;
-    tnp.position = document.getElementById('edit-tnp-position').value;
-    tnp.department = document.getElementById('edit-tnp-department').value;
-    tnp.phone = document.getElementById('edit-tnp-phone').value.trim();
+    const updatedData = {
+        id: tnp.id,
+        name: document.getElementById('edit-tnp-name').value.trim(),
+        employee_id: newEmployeeId, // Corrected field name
+        position: document.getElementById('edit-tnp-position').value,
+        department: document.getElementById('edit-tnp-department').value,
+        phone: document.getElementById('edit-tnp-phone').value.trim()
+    };
 
-    if (!tnp.name || !tnp.employeeId || !tnp.position || !tnp.department || !tnp.phone) {
+
+    if (!updatedData.name || !updatedData.employee_id || !updatedData.position || !updatedData.department || !updatedData.phone) {
         showError('Please fill in all required fields.');
         submitBtn.classList.remove('loading');
         submitBtn.disabled = false;
         return;
     }
 
-    if (!/^\+[0-9]{1,3}[0-9]{10}$/.test(tnp.phone)) {
+    if (!/^\+[0-9]{1,3}[0-9]{10}$/.test(updatedData.phone)) {
         showError('Phone number must include country code (e.g., +919876543210).');
         submitBtn.classList.remove('loading');
         submitBtn.disabled = false;
         return;
     }
 
-    const index = AppState.tnpOfficers.findIndex(t => t.id === tnp.id);
-    if (index !== -1) {
-        AppState.tnpOfficers[index] = tnp;
+    try {
+        // Assuming you have an API endpoint for updating T&P profiles
+        const response = await fetch('api/update_tnp_profile.php', { // You need to create this PHP file
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(updatedData)
+        });
+        const result = await response.json();
+
+        if (result.success) {
+            AppState.currentUser = { ...AppState.currentUser, ...updatedData };
+            // No need to update AppState.tnpOfficers as it's not populated from PHP
+            await loadTnpDashboard(); // Reload dashboard data to reflect changes
+            closeModal('tnp-profile-edit-modal');
+            showSuccess('Profile updated successfully!');
+        } else {
+            showError(result.message);
+        }
+    } catch (error) {
+        console.error('Error updating T&P profile:', error);
+        showError('An error occurred while updating the profile. Please try again.');
     }
-    AppState.saveToStorage();
-    localStorage.setItem('currentUser', JSON.stringify(tnp));
-    closeModal('tnp-profile-edit-modal');
-    loadTnpProfile();
-    showSuccess('Profile updated successfully!');
+
     submitBtn.classList.remove('loading');
     submitBtn.disabled = false;
 });
@@ -915,9 +1071,11 @@ function loadTnpOverview() {
     }).join('');
 
     const recentActivities = document.getElementById('recent-activities-list');
-    const activities = AppState.applications.slice(-5).reverse().map(app => {
-        const student = AppState.students.find(s => s.id === app.studentId);
-        const job = AppState.jobs.find(j => j.id === app.jobId);
+    // Sort applications by applied_date in descending order to get most recent
+    const sortedApplications = [...AppState.applications].sort((a, b) => new Date(b.applied_date) - new Date(a.applied_date));
+    const activities = sortedApplications.slice(0, 5).map(app => { // Get top 5 recent activities
+        const student = AppState.students.find(s => s.id === app.student_id); // Corrected field name
+        const job = AppState.jobs.find(j => j.id === app.job_id); // Corrected field name
         if (!student || !job) return '';
 
         const displayJobTitle = job.type === 'job' ? job.title : job.position;
@@ -926,8 +1084,8 @@ function loadTnpOverview() {
             <div class="activity-item">
                 <div class="activity-icon">📝</div>
                 <div class="activity-content">
-                    <p>${student.name} applied for ${displayJobTitle} at ${job.companyName}</p>
-                    <span class="activity-time">${app.appliedDate}</span>
+                    <p>${student.name} applied for ${displayJobTitle} at ${job.company_name || 'N/A'}</p>
+                    <span class="activity-time">${app.applied_date}</span>
                 </div>
             </div>
         `;
@@ -943,7 +1101,7 @@ function loadTnpStudents() {
     const students = AppState.students.filter(student => {
         const matchesDept = !deptFilter || student.department === deptFilter;
         const matchesStatus = !statusFilter || (statusFilter === 'placed' && student.placement) || (statusFilter === 'unplaced' && !student.placement);
-        const matchesCgpa = student.cgpa >= minCgpa;
+        const matchesCgpa = (student.cgpa || 0) >= minCgpa; // Handle null/undefined cgpa
         return matchesDept && matchesStatus && matchesCgpa;
     });
 
@@ -953,7 +1111,7 @@ function loadTnpStudents() {
             <thead>
                 <tr>
                     <th>Name</th>
-                    <th>Roll Number</th>
+                    <th>Email</th>
                     <th>Course</th>
                     <th>Department</th>
                     <th>Year</th>
@@ -965,8 +1123,8 @@ function loadTnpStudents() {
             <tbody>
                 ${students.map(student => `
                     <tr>
-                        <td>${student.name}</td>
-                        <td>${student.rollNumber || 'N/A'}</td>
+                        <td>${student.name || 'N/A'}</td>
+                        <td>${student.email || 'N/A'}</td>
                         <td>${student.course || 'N/A'}</td>
                         <td>${student.department || 'N/A'}</td>
                         <td>${student.year || 'N/A'}</td>
@@ -975,7 +1133,7 @@ function loadTnpStudents() {
                         <td class="table-actions">
                             <button class="btn btn-primary btn-small" onclick="viewStudentDetails('${student.id}')">View</button>
                             ${student.status === 'pending' ? `<button class="btn btn-success btn-small" onclick="openVerificationModal('student', '${student.id}')">Verify</button>` : ''}
-                            <button class="btn btn-warning btn-small" onclick="toggleBlockUser('student', '${student.id}')">${student.isBlocked ? 'Unblock' : 'Block'}</button>
+                            <button class="btn btn-warning btn-small" onclick="toggleBlockUser('student', '${student.id}')">${student.status === 'blocked' ? 'Unblock' : 'Block'}</button>
                         </td>
                     </tr>
                 `).join('')}
@@ -997,14 +1155,19 @@ function viewStudentDetails(studentId) {
     alert(`
         Name: ${student.name || 'N/A'}
         Email: ${student.email || 'N/A'}
-        Roll Number: ${student.rollNumber || 'N/A'}
+        Phone: ${student.phone || '-'}
         Course: ${student.course || 'N/A'}
         Department: ${student.department || 'N/A'}
         Year: ${student.year || 'N/A'}
         CGPA: ${student.cgpa || 'N/A'}
-        Skills: ${student.skills ? student.skills.join(', ') : 'N/A'}
-        Phone: ${student.phone || '-'}
-        Placement: ${student.placement ? `${student.placement.position} at ${student.placement.company}` : 'Not placed'}
+        10th %: ${student.tenth_percentage || 'N/A'}
+        12th %: ${student.twelfth_percentage || 'N/A'}
+        GitHub: ${student.github || 'N/A'}
+        LinkedIn: ${student.linkedin || 'N/A'}
+        Interest: ${student.interest || 'N/A'}
+        Graduation Year: ${student.grad_year || 'N/A'}
+        Skills: ${Array.isArray(student.skills) ? student.skills.join(', ') : 'N/A'}
+        Placement: ${student.placement ? `${student.placement.position} at ${student.placement.company_name || 'N/A'} (Package: ${student.placement.package || 'N/A'} LPA)` : 'Not placed'}
     `);
 }
 
@@ -1016,7 +1179,6 @@ function loadTnpCompanies() {
                 <tr>
                     <th>Company Name</th>
                     <th>HR Name</th>
-                    <th>HR ID</th>
                     <th>HR Email</th>
                     <th>Industry</th>
                     <th>Phone</th>
@@ -1028,10 +1190,9 @@ function loadTnpCompanies() {
             <tbody>
                 ${AppState.companies.map(company => `
                     <tr>
-                        <td>${company.companyName || 'N/A'}</td>
-                        <td>${company.hrName || 'N/A'}</td>
-                        <td>${company.hrId || 'N/A'}</td>
-                        <td>${company.hrEmail || 'N/A'}</td>
+                        <td>${company.company_name || 'N/A'}</td>
+                        <td>${company.hr_name || 'N/A'}</td>
+                        <td>${company.email || 'N/A'}</td>
                         <td>${company.industry || 'N/A'}</td>
                         <td>${company.phone || '-'}</td>
                         <td>${company.jobPostings ? company.jobPostings.length : 0}</td>
@@ -1039,7 +1200,7 @@ function loadTnpCompanies() {
                         <td class="table-actions">
                             <button class="btn btn-primary btn-small" onclick="viewCompanyDetails('${company.id}')">View</button>
                             ${company.status === 'pending' ? `<button class="btn btn-success btn-small" onclick="openVerificationModal('company', '${company.id}')">Verify</button>` : ''}
-                            <button class="btn btn-warning btn-small" onclick="toggleBlockUser('company', '${company.id}')">${company.isBlocked ? 'Unblock' : 'Block'}</button>
+                            <button class="btn btn-warning btn-small" onclick="toggleBlockUser('company', '${company.id}')">${company.status === 'blocked' ? 'Unblock' : 'Block'}</button>
                         </td>
                     </tr>
                 `).join('')}
@@ -1055,10 +1216,10 @@ function viewCompanyDetails(companyId) {
         return;
     }
     alert(`
-        Company Name: ${company.companyName || 'N/A'}
-        HR Name: ${company.hrName || 'N/A'}
-        HR ID: ${company.hrId || 'N/A'}
-        HR Email: ${company.hrEmail || 'N/A'}
+        Company Name: ${company.company_name || 'N/A'}
+        HR Name: ${company.hr_name || 'N/A'}
+        HR ID: ${company.hr_id || 'N/A'}
+        HR Email: ${company.email || 'N/A'}
         Industry: ${company.industry || 'N/A'}
         Website: ${company.website || '-'}
         Phone: ${company.phone || '-'}
@@ -1080,9 +1241,9 @@ function loadTnpJobs() {
     const jobsList = document.getElementById('tnp-jobs-list');
     jobsList.innerHTML = jobs.length > 0 ? jobs.map(job => {
         const displayTitle = job.type === 'job' ? job.title : job.position;
-        const displayPackage = job.type === 'job' ? `${job.salary ? job.salary.totalCtc : 'N/A'} LPA` : `${job.stipend || 'N/A'} /month`;
-        const displayLocation = job.type === 'job' ? (job.locations ? job.locations.join(', ') : 'N/A') : 'N/A';
-        const displayMinCgpa = job.eligibility ? job.eligibility.minCgpa : 'N/A';
+        const displayPackage = job.type === 'job' ? `${job.salary_ctc || 'N/A'} LPA` : `${job.stipend || 'N/A'} /month`;
+        const displayLocation = Array.isArray(job.locations) ? job.locations.join(', ') : 'N/A';
+        const displayMinCgpa = job.eligibility_min_cgpa || 'N/A';
         const displayDeadline = job.deadline || 'N/A';
 
         return `
@@ -1090,7 +1251,7 @@ function loadTnpJobs() {
                 <div class="company-job-header">
                     <div>
                         <h3 class="job-title">${displayTitle}</h3>
-                        <p class="job-company">${job.companyName}</p>
+                        <p class="job-company">${job.company_name || 'N/A'}</p>
                     </div>
                     <span class="job-type ${new Date(job.deadline || '9999-12-31') >= new Date() ? 'active' : 'expired'}">${new Date(job.deadline || '9999-12-31') >= new Date() ? 'Active' : 'Expired'}</span>
                 </div>
@@ -1127,7 +1288,7 @@ function loadTnpPlacements() {
             <thead>
                 <tr>
                     <th>Student Name</th>
-                    <th>Roll Number</th>
+                    <th>Email</th>
                     <th>Course</th>
                     <th>Department</th>
                     <th>Company</th>
@@ -1140,13 +1301,13 @@ function loadTnpPlacements() {
                 ${placements.map(student => `
                     <tr>
                         <td>${student.name || 'N/A'}</td>
-                        <td>${student.rollNumber || 'N/A'}</td>
+                        <td>${student.email || 'N/A'}</td>
                         <td>${student.course || 'N/A'}</td>
                         <td>${student.department || 'N/A'}</td>
-                        <td>${student.placement.company || 'N/A'}</td>
+                        <td>${student.placement.company_name || 'N/A'}</td>
                         <td>${student.placement.position || 'N/A'}</td>
                         <td>${student.placement.package || 'N/A'} LPA</td>
-                        <td>${student.placement.date || 'N/A'}</td>
+                        <td>${student.placement.placement_date || 'N/A'}</td>
                     </tr>
                 `).join('')}
             </tbody>
@@ -1177,33 +1338,33 @@ function showCompanySection(section) {
 
 function loadCompanyProfile() {
     const company = AppState.currentUser;
-    document.getElementById('company-name').textContent = company.companyName;
-    document.getElementById('company-hr-name').textContent = `HR Name: ${company.hrName || 'N/A'}`;
-    document.getElementById('company-hr-id').textContent = `HR ID: ${company.hrId || 'N/A'}`;
-    document.getElementById('company-hr-email').textContent = `HR Email: ${company.hrEmail || 'N/A'}`;
+    document.getElementById('company-name').textContent = company.company_name || 'N/A'; // Corrected field name
+    document.getElementById('company-hr-name').textContent = `HR Name: ${company.hr_name || 'N/A'}`; // Corrected field name
+    document.getElementById('company-hr-id').textContent = `HR ID: ${company.hr_id || 'N/A'}`; // Corrected field name
+    document.getElementById('company-hr-email').textContent = `HR Email: ${company.email || 'N/A'}`; // Using email from users table
     document.getElementById('company-industry').textContent = `Industry: ${company.industry || 'N/A'}`;
     document.getElementById('company-website').textContent = `Website: ${company.website || '-'}`;
     document.getElementById('company-phone').textContent = `Phone: ${company.phone || '-'}`;
 
-    document.getElementById('company-jobs-count').textContent = company.jobPostings ? company.jobPostings.length : 0;
-    const companyJobIds = company.jobPostings || [];
-    document.getElementById('company-applications-count').textContent = AppState.applications.filter(a => companyJobIds.includes(a.jobId)).length;
-    document.getElementById('company-hires-count').textContent = AppState.applications.filter(a => companyJobIds.includes(a.jobId) && a.status === 'accepted').length;
+    const companyJobIds = AppState.jobs.filter(j => j.company_id === company.id).map(j => j.id); // Get job IDs posted by this company
+    document.getElementById('company-jobs-count').textContent = companyJobIds.length;
+    document.getElementById('company-applications-count').textContent = AppState.applications.filter(a => companyJobIds.includes(a.job_id)).length; // Corrected field name
+    document.getElementById('company-hires-count').textContent = AppState.applications.filter(a => companyJobIds.includes(a.job_id) && a.status === 'accepted').length; // Corrected field name
 }
 
 function editCompanyProfile() {
     const company = AppState.currentUser;
-    document.getElementById('edit-company-hr-name').value = company.hrName || '';
-    document.getElementById('edit-company-hr-id').value = company.hrId || '';
-    document.getElementById('edit-company-hr-email').value = company.hrEmail || '';
+    document.getElementById('edit-company-hr-name').value = company.hr_name || ''; // Corrected field name
+    document.getElementById('edit-company-hr-id').value = company.hr_id || ''; // Corrected field name
+    document.getElementById('edit-company-hr-email').value = company.email || ''; // Using email from users table
     document.getElementById('edit-company-phone').value = company.phone || '';
-    document.getElementById('edit-company-name').value = company.companyName || '';
+    document.getElementById('edit-company-name').value = company.company_name || ''; // Corrected field name
     document.getElementById('edit-company-industry').value = company.industry || '';
     document.getElementById('edit-company-website').value = company.website || '';
     showModal('company-profile-edit-modal');
 }
 
-document.getElementById('company-profile-edit-form').addEventListener('submit', function(e) {
+document.getElementById('company-profile-edit-form').addEventListener('submit', async function (e) {
     e.preventDefault();
     const submitBtn = this.querySelector('button[type="submit"]');
     submitBtn.classList.add('loading');
@@ -1218,49 +1379,66 @@ document.getElementById('company-profile-edit-form').addEventListener('submit', 
     const company = AppState.currentUser;
     const newHrId = document.getElementById('edit-company-hr-id').value.trim();
 
-    if (newHrId !== company.hrId && AppState.companies.some(c => c.hrId === newHrId)) {
-        showError('HR ID already exists.');
-        submitBtn.classList.remove('loading');
-        submitBtn.disabled = false;
-        return;
-    }
+    // This check is client-side only. For robust validation, it should be on the server.
+    // if (newHrId !== company.hr_id && AppState.companies.some(c => c.hr_id === newHrId)) {
+    //     showError('HR ID already exists.');
+    //     submitBtn.classList.remove('loading');
+    //     submitBtn.disabled = false;
+    //     return;
+    // }
 
-    company.hrName = document.getElementById('edit-company-hr-name').value.trim();
-    company.hrId = newHrId;
-    company.hrEmail = document.getElementById('edit-company-hr-email').value.trim();
-    company.phone = document.getElementById('edit-company-phone').value.trim();
-    company.companyName = document.getElementById('edit-company-name').value.trim();
-    company.industry = document.getElementById('edit-company-industry').value.trim();
-    company.website = document.getElementById('edit-company-website').value.trim();
+    const updatedData = {
+        id: company.id,
+        hr_name: document.getElementById('edit-company-hr-name').value.trim(), // Corrected field name
+        hr_id: newHrId, // Corrected field name
+        email: document.getElementById('edit-company-hr-email').value.trim(), // Using email from users table
+        phone: document.getElementById('edit-company-phone').value.trim(),
+        company_name: document.getElementById('edit-company-name').value.trim(), // Corrected field name
+        industry: document.getElementById('edit-company-industry').value.trim(),
+        website: document.getElementById('edit-company-website').value.trim()
+    };
 
-    if (!company.hrName || !company.hrId || !company.hrEmail || !company.phone || !company.companyName || !company.industry || !company.website) {
+    if (!updatedData.hr_name || !updatedData.hr_id || !updatedData.email || !updatedData.phone || !updatedData.company_name || !updatedData.industry || !updatedData.website) {
         showError('Please fill in all required fields.');
         submitBtn.classList.remove('loading');
         submitBtn.disabled = false;
         return;
     }
 
-    if (!/^\+[0-9]{1,3}[0-9]{10}$/.test(company.phone)) {
+    if (!/^\+[0-9]{1,3}[0-9]{10}$/.test(updatedData.phone)) {
         showError('Phone number must include country code (e.g., +919876543210).');
         submitBtn.classList.remove('loading');
         submitBtn.disabled = false;
         return;
     }
 
-    const index = AppState.companies.findIndex(c => c.id === company.id);
-    if (index !== -1) {
-        AppState.companies[index] = company;
+    try {
+        // Assuming you have an API endpoint for updating company profiles
+        const response = await fetch('api/update_company_profile.php', { // You need to create this PHP file
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(updatedData)
+        });
+        const result = await response.json();
+
+        if (result.success) {
+            AppState.currentUser = { ...AppState.currentUser, ...updatedData };
+            await loadCompanyDashboard(); // Reload dashboard data to reflect changes
+            closeModal('company-profile-edit-modal');
+            showSuccess('Profile updated successfully!');
+        } else {
+            showError(result.message);
+        }
+    } catch (error) {
+        console.error('Error updating company profile:', error);
+        showError('An error occurred while updating the profile. Please try again.');
     }
-    AppState.saveToStorage();
-    localStorage.setItem('currentUser', JSON.stringify(company));
-    closeModal('company-profile-edit-modal');
-    loadCompanyProfile();
-    showSuccess('Profile updated successfully!');
+
     submitBtn.classList.remove('loading');
     submitBtn.disabled = false;
 });
 
-document.getElementById('job-form').addEventListener('submit', async function(e) {
+document.getElementById('job-form').addEventListener('submit', async function (e) {
     e.preventDefault();
     const submitBtn = this.querySelector('button[type="submit"]');
     submitBtn.classList.add('loading');
@@ -1268,27 +1446,196 @@ document.getElementById('job-form').addEventListener('submit', async function(e)
 
     const opportunityType = document.getElementById('opportunity-type').value;
     let jobData = {
-        companyId: AppState.currentUser.id,
-        companyName: AppState.currentUser.companyName,
+        company_id: AppState.currentUser.id, // Corrected field name
         type: opportunityType,
-        postedDate: new Date().toISOString().split('T')[0],
-        deadline: document.getElementById('job-deadline').value // Add this field to your HTML form
+        posted_date: new Date().toISOString().split('T')[0], // Corrected field name
+        deadline: document.getElementById('job-deadline') ? document.getElementById('job-deadline').value : new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0], // Placeholder if no input
     };
 
-    // Collect job data as before
-    // ... (same as original jobData collection logic)
+    let isValid = true;
+
+    if (opportunityType === 'internship') {
+        jobData.position = document.getElementById('internship-position').value.trim();
+        jobData.domain = document.getElementById('internship-domain').value.trim();
+        jobData.openings = parseInt(document.getElementById('internship-openings').value);
+        jobData.duration = document.getElementById('internship-duration').value;
+        jobData.start_date = document.getElementById('internship-start-date').value; // Corrected field name
+        jobData.stipend = parseFloat(document.getElementById('internship-stipend').value);
+        jobData.fulltime_offer = document.getElementById('internship-fulltime-offer').value; // Corrected field name
+
+        // Company Contact Info for Internship
+        jobData.companyDetails = { // Grouped under companyDetails for consistency with job
+            company_name: document.getElementById('internship-company-name').value.trim(), // Corrected field name
+            registeredAddress: document.getElementById('internship-registered-address').value.trim(),
+            hr_contact_name: document.getElementById('internship-hr-name').value.trim(), // Corrected field name
+            hr_designation: document.getElementById('internship-hr-designation').value.trim(), // Corrected field name
+            hr_email: document.getElementById('internship-hr-email').value.trim() // Corrected field name
+        };
+
+
+        if (!jobData.position || !jobData.domain || isNaN(jobData.openings) || jobData.openings <= 0 || !jobData.duration || !jobData.start_date || isNaN(jobData.stipend) || !jobData.fulltime_offer || !jobData.companyDetails.company_name || !jobData.companyDetails.registeredAddress || !jobData.companyDetails.hr_contact_name || !jobData.companyDetails.hr_designation || !jobData.companyDetails.hr_email) {
+            isValid = false;
+            showError('Please fill in all required Internship fields.');
+        }
+    } else if (opportunityType === 'job') {
+        jobData.title = document.getElementById('job-title-designation').value.trim();
+        jobData.work_type = document.getElementById('job-work-type').value; // Corrected field name
+        jobData.timings = document.getElementById('job-timings').value.trim();
+        jobData.locations = Array.from(document.getElementById('job-locations').selectedOptions).map(option => option.value);
+        jobData.openings = parseInt(document.getElementById('job-total-openings').value); // Renamed to 'openings' for consistency
+        jobData.skills = jobRequiredSkills;
+        jobData.description = document.getElementById('job-description').value.trim();
+        jobData.responsibilities = document.getElementById('job-responsibilities').value.trim();
+
+        jobData.eligibility = {
+            qualification: document.getElementById('eligibility-qualification').value.trim(),
+            eligibility_courses: Array.from(document.getElementById('eligibility-preferred-courses').selectedOptions).map(option => option.value), // Corrected field name
+            eligibility_grad_year: parseInt(document.getElementById('eligibility-graduation-year').value), // Corrected field name
+            eligibility_min_cgpa: parseFloat(document.getElementById('eligibility-min-cgpa').value) // Corrected field name
+        };
+
+        jobData.salary_ctc = parseFloat(document.getElementById('salary-total-ctc').value); // Corrected field name
+        jobData.salary_breakdown = {}; // Corrected field name
+
+        document.querySelectorAll('#salary-breakdown-body tr:not(.custom-salary-component-row) .salary-component-amount').forEach(input => {
+            const componentName = input.dataset.component;
+            jobData.salary_breakdown[componentName] = parseFloat(input.value) || 0;
+        });
+
+        document.querySelectorAll('#salary-breakdown-body tr:not(.custom-salary-component-row) .salary-component-note').forEach(input => {
+            const componentName = input.dataset.component;
+            jobData.salary_breakdown[`${componentName}-note`] = input.value.trim();
+        });
+
+        document.querySelectorAll('.custom-salary-component-row').forEach(row => {
+            const nameInput = row.querySelector('.salary-component-name').value.trim();
+            const amountInput = parseFloat(row.querySelector('.salary-component-amount').value) || 0;
+            const noteInput = row.querySelector('.salary-component-note').value.trim();
+
+            if (nameInput) {
+                jobData.salary_breakdown[nameInput] = amountInput;
+                if (noteInput) {
+                    jobData.salary_breakdown[`${nameInput}-note`] = noteInput;
+                }
+            } else if (amountInput > 0 || noteInput) {
+                isValid = false;
+                showError('Custom salary components must have a valid name.');
+            }
+        });
+
+        // Collect Leaves Policy data
+        jobData.leaves_total = parseInt(document.getElementById('leaves-total').value) || 0; // Corrected field name
+        jobData.leaves_cl = parseInt(document.getElementById('leaves-cl').value) || 0; // Corrected field name
+        jobData.leaves_sl = parseInt(document.getElementById('leaves-sl').value) || 0; // Corrected field name
+        jobData.leaves_el = parseInt(document.getElementById('leaves-el').value) || 0; // Corrected field name
+        jobData.leaves_carry_forward = document.getElementById('leaves-carry-forward').value; // Corrected field name
+        jobData.leaves_maternity_paternity = document.getElementById('leaves-maternity-paternity').value; // Corrected field name
+        jobData.leaves_maternity_days = parseInt(document.getElementById('leaves-maternity-paternity-days').value) || 0; // Corrected field name
+        // holiday_list_path will be handled by FormData for file upload
+
+        // Collect Benefits & Perks data
+        jobData.benefits_medical_insurance = document.getElementById('benefits-medical-insurance').value; // Corrected field name
+        jobData.benefits_coverage_amount = parseFloat(document.getElementById('benefits-coverage-amount').value) || 0; // Corrected field name
+        jobData.benefits_family_included = document.getElementById('benefits-family-included').value; // Corrected field name
+        jobData.benefits_wfh = document.getElementById('benefits-wfh').value; // Corrected field name
+        jobData.benefits_internet = document.getElementById('benefits-internet-reimbursement').value; // Corrected field name
+        jobData.benefits_laptop = document.getElementById('benefits-laptop-provided').value; // Corrected field name
+        jobData.benefits_dress_code = document.getElementById('benefits-dress-code').value.trim(); // Corrected field name
+        jobData.benefits_health_checkups = document.getElementById('benefits-health-checkups').value; // Corrected field name
+
+        // Collect Bond / Agreement data
+        jobData.bond_required = document.getElementById('bond-required').value; // Corrected field name
+        jobData.bond_duration_value = parseInt(document.getElementById('bond-duration-value').value) || 0; // Corrected field name
+        jobData.bond_duration_unit = document.getElementById('bond-duration-unit').value; // Corrected field name
+        jobData.bond_penalty_amount = parseFloat(document.getElementById('bond-penalty-amount').value) || 0; // Corrected field name
+        jobData.bond_background_check = document.getElementById('bond-background-check').value; // Corrected field name
+        jobData.bond_probation_period = parseInt(document.getElementById('bond-probation-period').value) || 0; // Corrected field name
+        jobData.bond_notice_period = parseInt(document.getElementById('bond-notice-period').value) || 0; // Corrected field name
+        jobData.bond_non_compete = document.getElementById('bond-non-compete').value; // Corrected field name
+
+        // Collect Company Details data
+        jobData.company_address = document.getElementById('company-details-registered-address').value.trim(); // Corrected field name
+        jobData.hr_contact_name = document.getElementById('company-details-hr-name').value.trim(); // Corrected field name
+        jobData.hr_designation = document.getElementById('company-details-hr-designation').value.trim(); // Corrected field name
+        jobData.hr_email = document.getElementById('company-details-hr-email').value.trim(); // Corrected field name
+        jobData.branch_locations = Array.from(document.getElementById('company-details-branch-locations').selectedOptions).map(option => option.value); // Corrected field name
+
+        // Collect Bonus (Optional Fields) data
+        jobData.growth_opportunities = document.getElementById('bonus-growth-opportunities').value.trim(); // Corrected field name
+        jobData.travel_requirements = document.getElementById('bonus-travel-requirements').value.trim(); // Corrected field name
+        jobData.id_email_setup_timeline = document.getElementById('bonus-id-email-setup-timeline').value.trim(); // Corrected field name
+        jobData.onboarding_process = document.getElementById('bonus-onboarding-process').value.trim(); // Corrected field name
+
+        // Basic validation for job fields
+        if (!jobData.title || !jobData.work_type || jobData.locations.length === 0 || isNaN(jobData.openings) || jobData.openings <= 0 || jobData.skills.length === 0 || !jobData.description || !jobData.responsibilities || !jobData.eligibility.qualification || jobData.eligibility.eligibility_courses.length === 0 || isNaN(jobData.eligibility.eligibility_grad_year) || isNaN(jobData.eligibility.eligibility_min_cgpa) || isNaN(jobData.salary_ctc) || !jobData.company_address || !jobData.hr_contact_name || !jobData.hr_designation || !jobData.hr_email) {
+            isValid = false;
+            showError('Please fill in all required Job fields.');
+        }
+
+        if (jobData.salary_ctc < 0) {
+            isValid = false;
+            showError('Total CTC must be a positive number.');
+        }
+    } else {
+        isValid = false;
+        showError('Please select an opportunity type.');
+    }
+
+    if (jobData.skills && jobData.skills.length === 0) {
+        isValid = false;
+        showError('At least one required skill must be specified.');
+    }
+
+    if (!jobData.deadline || new Date(jobData.deadline) < new Date()) {
+        isValid = false;
+        showError('Please provide a valid future deadline.');
+    }
+
+    if (!isValid) {
+        submitBtn.classList.remove('loading');
+        submitBtn.disabled = false;
+        return;
+    }
+
+    // Prepare FormData for submission (including files)
+    const formData = new FormData();
+    for (const key in jobData) {
+        if (Array.isArray(jobData[key]) || typeof jobData[key] === 'object' && jobData[key] !== null) {
+            formData.append(key, JSON.stringify(jobData[key]));
+        } else {
+            formData.append(key, jobData[key]);
+        }
+    }
+
+    // Append file attachments
+    const attachmentFields = [
+        'leaves-holiday-list', // This is holiday_list_path in PHP
+        'attachments-job-description-pdf',
+        'attachments-salary-structure-pdf',
+        'attachments-leave-policy-pdf',
+        'attachments-bond-copy',
+        'attachments-medical-insurance-terms'
+    ];
+
+    attachmentFields.forEach(fieldId => {
+        const inputElement = document.getElementById(fieldId);
+        if (inputElement && inputElement.files && inputElement.files[0]) {
+            // Map frontend ID to backend field name
+            let backendFieldName = fieldId.replace('attachments-', '').replace('leaves-holiday-list', 'holiday_list_path').replace(/-/g, '_');
+            formData.append(backendFieldName, inputElement.files[0]);
+        }
+    });
 
     try {
         const response = await fetch('api/post_job.php', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(jobData)
+            body: formData // FormData handles Content-Type automatically
         });
         const result = await response.json();
 
         if (result.success) {
             closeModal('job-form-modal');
-            loadCompanyJobs();
+            await loadCompanyDashboard(); // Reload company jobs and other data
             showSuccess(result.message);
             this.reset();
             jobRequiredSkills = [];
@@ -1297,11 +1644,13 @@ document.getElementById('job-form').addEventListener('submit', async function(e)
             customComponentCount = 0;
             document.querySelectorAll('.custom-salary-component-row').forEach(row => row.remove());
             calculateInHandSalary();
+            toggleOpportunityType(); // Reset sections visibility
         } else {
             showError(result.message);
         }
     } catch (error) {
-        showError('An error occurred while posting the job.');
+        console.error('Error posting job:', error);
+        showError('An error occurred while posting the job. Please try again.');
     }
 
     submitBtn.classList.remove('loading');
@@ -1312,14 +1661,14 @@ document.getElementById('job-form').addEventListener('submit', async function(e)
 
 function loadCompanyJobs() {
     const company = AppState.currentUser;
-    const jobs = AppState.jobs.filter(j => j.companyId === company.id);
+    const jobs = AppState.jobs.filter(j => j.company_id === company.id); // Corrected field name
 
     const jobsList = document.getElementById('company-jobs-list');
     jobsList.innerHTML = jobs.length > 0 ? jobs.map(job => {
         const displayTitle = job.type === 'job' ? job.title : job.position;
-        const displayPackage = job.type === 'job' ? `${job.salary ? job.salary.totalCtc : 'N/A'} LPA` : `${job.stipend || 'N/A'} /month`;
-        const displayLocation = job.type === 'job' ? (job.locations ? job.locations.join(', ') : 'N/A') : 'N/A';
-        const displayMinCgpa = job.eligibility ? job.eligibility.minCgpa : 'N/A';
+        const displayPackage = job.type === 'job' ? `${job.salary_ctc || 'N/A'} LPA` : `${job.stipend || 'N/A'} /month`; // Corrected field name
+        const displayLocation = Array.isArray(job.locations) ? job.locations.join(', ') : 'N/A';
+        const displayMinCgpa = job.eligibility_min_cgpa || 'N/A'; // Corrected field name
         const displayDeadline = job.deadline || 'N/A';
 
         return `
@@ -1327,7 +1676,7 @@ function loadCompanyJobs() {
                 <div class="company-job-header">
                     <div>
                         <h3 class="job-title">${displayTitle}</h3>
-                        <p class="job-company">${job.companyName}</p>
+                        <p class="job-company">${job.company_name || 'N/A'}</p>
                     </div>
                     <span class="job-type ${new Date(job.deadline || '9999-12-31') >= new Date() ? 'active' : 'expired'}">${new Date(job.deadline || '9999-12-31') >= new Date() ? 'Active' : 'Expired'}</span>
                 </div>
@@ -1362,7 +1711,7 @@ function loadCompanyStudents() {
 
     const students = AppState.students.filter(student => {
         const matchesDept = !deptFilter || student.department === deptFilter;
-        const matchesCgpa = student.cgpa >= minCgpa;
+        const matchesCgpa = (student.cgpa || 0) >= minCgpa; // Handle null/undefined cgpa
         const matchesYear = !yearFilter || (student.year && student.year.toString() === yearFilter);
         return matchesDept && matchesCgpa && matchesYear;
     });
@@ -1379,7 +1728,7 @@ function loadCompanyStudents() {
             </div>
             <div class="student-details">
                 <div class="student-detail"><strong>CGPA:</strong> <span>${student.cgpa || 'N/A'}</span></div>
-                <div class="student-detail"><strong>Skills:</strong> <span>${student.skills ? student.skills.join(', ') : 'N/A'}</span></div>
+                <div class="student-detail"><strong>Skills:</strong> <span>${Array.isArray(student.skills) ? student.skills.join(', ') : 'N/A'}</span></div>
                 <div class="student-detail"><strong>Placement:</strong> <span>${student.placement ? 'Placed' : 'Unplaced'}</span></div>
             </div>
             <div class="job-actions">
@@ -1397,17 +1746,19 @@ function loadCompanyApplications() {
     const company = AppState.currentUser;
     const statusFilter = document.getElementById('application-status-filter').value;
 
-    const companyJobIds = company.jobPostings || [];
-    const applications = AppState.applications.filter(a => companyJobIds.includes(a.jobId) && (!statusFilter || a.status === statusFilter));
+    // Get job IDs posted by the current company
+    const companyJobIds = AppState.jobs.filter(j => j.company_id === company.id).map(j => j.id);
+
+    const applications = AppState.applications.filter(a => companyJobIds.includes(a.job_id) && (!statusFilter || a.status === statusFilter)); // Corrected field name
 
     const applicationsList = document.getElementById('job-applications-list');
     applicationsList.innerHTML = applications.length > 0 ? applications.map(app => {
-        const student = AppState.students.find(s => s.id === app.studentId);
-        const job = AppState.jobs.find(j => j.id === app.jobId);
+        const student = AppState.students.find(s => s.id === app.student_id); // Corrected field name
+        const job = AppState.jobs.find(j => j.id === app.job_id); // Corrected field name
         if (!student || !job) return '';
 
         const displayJobTitle = job.type === 'job' ? job.title : job.position;
-        const studentSkills = student.skills ? student.skills.join(', ') : 'N/A';
+        const studentSkills = Array.isArray(student.skills) ? student.skills.join(', ') : 'N/A';
 
         return `
             <div class="application-card">
@@ -1421,11 +1772,11 @@ function loadCompanyApplications() {
                 <div class="application-details">
                     <div class="application-detail">
                         <strong>Applied On:</strong>
-                        <span>${app.appliedDate}</span>
+                        <span>${app.applied_date}</span>
                     </div>
                     <div class="application-detail">
                         <strong>Cover Letter:</strong>
-                        <span>${app.coverLetter ? app.coverLetter.substring(0, 100) + '...' : 'N/A'}</span>
+                        <span>${app.cover_letter ? app.cover_letter.substring(0, 100) + '...' : 'N/A'}</span>
                     </div>
                     <div class="application-detail">
                         <strong>Skills:</strong>
@@ -1449,9 +1800,9 @@ function filterApplications() {
 }
 
 function viewJobApplications(jobId) {
-    document.getElementById('application-status-filter').value = '';
-    loadCompanyApplications();
-    showCompanySection('applications');
+    document.getElementById('application-status-filter').value = ''; // Reset filter
+    loadCompanyApplications(); // Load all applications for the company
+    showCompanySection('applications'); // Navigate to applications section
 }
 
 async function updateApplicationStatus(applicationId, status) {
@@ -1464,12 +1815,30 @@ async function updateApplicationStatus(applicationId, status) {
         const result = await response.json();
 
         if (result.success) {
+            // Reload applications and jobs to reflect the new status and potential placement
+            const applicationsResponse = await fetch('api/applications.php');
+            const applicationsResult = await applicationsResponse.json();
+            if (applicationsResult.success) {
+                AppState.applications = applicationsResult.data;
+            }
+            const jobsResponse = await fetch('api/jobs.php');
+            const jobsResult = await jobsResponse.json();
+            if (jobsResult.success) {
+                AppState.jobs = jobsResult.data;
+            }
+            const studentsResponse = await fetch('api/students.php'); // To update student placement status
+            const studentsResult = await studentsResponse.json();
+            if (studentsResult.success) {
+                AppState.students = studentsResult.data;
+            }
+
             loadCompanyApplications();
             showSuccess(result.message);
         } else {
             showError(result.message);
         }
     } catch (error) {
+        console.error('Error updating application status:', error);
         showError('An error occurred while updating the application status.');
     }
 }
@@ -1518,8 +1887,13 @@ function setRequiredFields(type, isRequired) {
 function setupCollapsibleSections() {
     const collapsibles = document.querySelectorAll('.collapsible-header');
     collapsibles.forEach(header => {
-        header.removeEventListener('click', toggleCollapsible);
-        header.addEventListener('click', toggleCollapsible);
+        // Remove existing event listener to prevent multiple bindings
+        if (header._handler) {
+            header.removeEventListener('click', header._handler);
+        }
+        const newHandler = toggleCollapsible.bind(header);
+        header.addEventListener('click', newHandler);
+        header._handler = newHandler; // Store reference to handler
     });
 }
 
@@ -1543,7 +1917,7 @@ function resetCollapsibleSections() {
 }
 
 let jobRequiredSkills = [];
-document.getElementById('job-required-skills').addEventListener('keydown', function(event) {
+document.getElementById('job-required-skills').addEventListener('keydown', function (event) {
     if (event.key === 'Enter' || event.key === ',') {
         event.preventDefault();
         const skillInput = this.value.trim();
@@ -1566,7 +1940,7 @@ function renderJobSkills() {
     });
 
     skillsDisplay.querySelectorAll('.remove-skill').forEach(button => {
-        button.addEventListener('click', function() {
+        button.addEventListener('click', function () {
             const skillToRemove = this.dataset.skill;
             jobRequiredSkills = jobRequiredSkills.filter(s => s !== skillToRemove);
             renderJobSkills();
@@ -1584,6 +1958,7 @@ function calculateInHandSalary() {
     });
 
     const totalCtc = parseFloat(document.getElementById('salary-total-ctc').value) || 0;
+    // Convert CTC from LPA to monthly, then subtract monthly components
     const estimatedMonthlyInHand = (totalCtc * 100000 / 12) - totalComponents;
 
     document.getElementById('in-hand-salary-estimate').textContent = estimatedMonthlyInHand.toFixed(2);
@@ -1648,224 +2023,16 @@ function toggleBondDetails() {
     }
 }
 
-document.getElementById('job-form').addEventListener('submit', function(e) {
-    e.preventDefault();
-    const submitBtn = this.querySelector('button[type="submit"]');
-    submitBtn.classList.add('loading');
-    submitBtn.disabled = true;
-
-    const opportunityType = document.getElementById('opportunity-type').value;
-    let jobData = {
-        companyId: AppState.currentUser.id,
-        companyName: AppState.currentUser.companyName,
-        type: opportunityType,
-        postedDate: new Date().toISOString().split('T')[0],
-        applicants: [],
-        selected: []
-    };
-
-    let isValid = true;
-
-    if (opportunityType === 'internship') {
-        jobData.position = document.getElementById('internship-position').value.trim();
-        jobData.domain = document.getElementById('internship-domain').value.trim();
-        jobData.openings = parseInt(document.getElementById('internship-openings').value);
-        jobData.duration = document.getElementById('internship-duration').value;
-        jobData.startDate = document.getElementById('internship-start-date').value;
-        jobData.stipend = parseFloat(document.getElementById('internship-stipend').value);
-        jobData.fulltimeOffer = document.getElementById('internship-fulltime-offer').value;
-        jobData.companyContact = {
-            name: document.getElementById('internship-company-name').value.trim(),
-            address: document.getElementById('internship-registered-address').value.trim(),
-            hrName: document.getElementById('internship-hr-name').value.trim(),
-            hrDesignation: document.getElementById('internship-hr-designation').value.trim(),
-            hrEmail: document.getElementById('internship-hr-email').value.trim()
-        };
-
-        if (!jobData.position || !jobData.domain || isNaN(jobData.openings) || jobData.openings <= 0 || !jobData.duration || !jobData.startDate || isNaN(jobData.stipend) || !jobData.fulltimeOffer || !jobData.companyContact.name || !jobData.companyContact.address || !jobData.companyContact.hrName || !jobData.companyContact.hrDesignation || !jobData.companyContact.hrEmail) {
-            isValid = false;
-            showError('Please fill in all required Internship fields.');
-        }
-    } else if (opportunityType === 'job') {
-        jobData.title = document.getElementById('job-title-designation').value.trim();
-        jobData.workType = document.getElementById('job-work-type').value;
-        jobData.timings = document.getElementById('job-timings').value.trim();
-        jobData.locations = Array.from(document.getElementById('job-locations').selectedOptions).map(option => option.value);
-        jobData.totalOpenings = parseInt(document.getElementById('job-total-openings').value);
-        jobData.skills = jobRequiredSkills;
-        jobData.description = document.getElementById('job-description').value.trim();
-        jobData.responsibilities = document.getElementById('job-responsibilities').value.trim();
-
-        jobData.eligibility = {
-            qualification: document.getElementById('eligibility-qualification').value.trim(),
-            preferredCourses: Array.from(document.getElementById('eligibility-preferred-courses').selectedOptions).map(option => option.value),
-            graduationYear: parseInt(document.getElementById('eligibility-graduation-year').value),
-            minCgpa: parseFloat(document.getElementById('eligibility-min-cgpa').value)
-        };
-
-        jobData.salary = {
-            totalCtc: parseFloat(document.getElementById('salary-total-ctc').value),
-            breakdown: {},
-            inHandEstimate: parseFloat(document.getElementById('in-hand-salary-estimate').textContent)
-        };
-
-        document.querySelectorAll('#salary-breakdown-body tr:not(.custom-salary-component-row) .salary-component-amount').forEach(input => {
-            const componentName = input.dataset.component;
-            jobData.salary.breakdown[componentName] = parseFloat(input.value) || 0;
-        });
-
-        document.querySelectorAll('#salary-breakdown-body tr:not(.custom-salary-component-row) .salary-component-note').forEach(input => {
-            const componentName = input.dataset.component;
-            jobData.salary.breakdown[`${componentName}-note`] = input.value.trim();
-        });
-
-        document.querySelectorAll('.custom-salary-component-row').forEach(row => {
-            const nameInput = row.querySelector('.salary-component-name').value.trim();
-            const amountInput = parseFloat(row.querySelector('.salary-component-amount').value) || 0;
-            const noteInput = row.querySelector('.salary-component-note').value.trim();
-
-            if (nameInput) {
-                jobData.salary.breakdown[nameInput] = amountInput;
-                if (noteInput) {
-                    jobData.salary.breakdown[`${nameInput}-note`] = noteInput;
-                }
-            } else if (amountInput > 0 || noteInput) {
-                isValid = false;
-                showError('Custom salary components must have a valid name.');
-            }
-        });
-
-        // Collect Leaves Policy data
-        jobData.leaves = {
-            total: parseInt(document.getElementById('leaves-total').value) || 0,
-            cl: parseInt(document.getElementById('leaves-cl').value) || 0,
-            sl: parseInt(document.getElementById('leaves-sl').value) || 0,
-            el: parseInt(document.getElementById('leaves-el').value) || 0,
-            carryForward: document.getElementById('leaves-carry-forward').value,
-            maternityPaternity: document.getElementById('leaves-maternity-paternity').value,
-            maternityPaternityDays: parseInt(document.getElementById('leaves-maternity-paternity-days').value) || 0,
-            holidayList: document.getElementById('leaves-holiday-list').files[0] ? document.getElementById('leaves-holiday-list').files[0].name : '' // Store file name or handle upload
-        };
-
-        // Collect Benefits & Perks data
-        jobData.benefits = {
-            medicalInsurance: document.getElementById('benefits-medical-insurance').value,
-            coverageAmount: parseFloat(document.getElementById('benefits-coverage-amount').value) || 0,
-            familyIncluded: document.getElementById('benefits-family-included').value,
-            wfh: document.getElementById('benefits-wfh').value,
-            internetReimbursement: document.getElementById('benefits-internet-reimbursement').value,
-            laptopProvided: document.getElementById('benefits-laptop-provided').value,
-            dressCode: document.getElementById('benefits-dress-code').value.trim(),
-            healthCheckups: document.getElementById('benefits-health-checkups').value
-        };
-
-        // Collect Bond / Agreement data
-        jobData.bond = {
-            required: document.getElementById('bond-required').value,
-            durationValue: parseInt(document.getElementById('bond-duration-value').value) || 0,
-            durationUnit: document.getElementById('bond-duration-unit').value,
-            penaltyAmount: parseFloat(document.getElementById('bond-penalty-amount').value) || 0,
-            backgroundCheck: document.getElementById('bond-background-check').value,
-            probationPeriod: parseInt(document.getElementById('bond-probation-period').value) || 0,
-            noticePeriod: parseInt(document.getElementById('bond-notice-period').value) || 0,
-            nonCompete: document.getElementById('bond-non-compete').value
-        };
-
-        // Collect Company Details data
-        jobData.companyDetails = {
-            registeredAddress: document.getElementById('company-details-registered-address').value.trim(),
-            hrContactPersonName: document.getElementById('company-details-hr-name').value.trim(),
-            hrDesignation: document.getElementById('company-details-hr-designation').value.trim(),
-            hrEmail: document.getElementById('company-details-hr-email').value.trim(),
-            branchLocations: Array.from(document.getElementById('company-details-branch-locations').selectedOptions).map(option => option.value)
-        };
-
-        // Collect Attachments (only file names for now, actual upload logic needed)
-        jobData.attachments = {
-            jobDescriptionPdf: document.getElementById('attachments-job-description-pdf').files[0] ? document.getElementById('attachments-job-description-pdf').files[0].name : '',
-            salaryStructurePdf: document.getElementById('attachments-salary-structure-pdf').files[0] ? document.getElementById('attachments-salary-structure-pdf').files[0].name : '',
-            leavePolicyPdf: document.getElementById('attachments-leave-policy-pdf').files[0] ? document.getElementById('attachments-leave-policy-pdf').files[0].name : '',
-            bondCopy: document.getElementById('attachments-bond-copy').files[0] ? document.getElementById('attachments-bond-copy').files[0].name : '',
-            medicalInsuranceTerms: document.getElementById('attachments-medical-insurance-terms').files[0] ? document.getElementById('attachments-medical-insurance-terms').files[0].name : ''
-        };
-
-        // Collect Bonus (Optional Fields) data
-        jobData.bonus = {
-            growthOpportunities: document.getElementById('bonus-growth-opportunities').value.trim(),
-            travelRequirements: document.getElementById('bonus-travel-requirements').value.trim(),
-            idEmailSetupTimeline: document.getElementById('bonus-id-email-setup-timeline').value.trim(),
-            onboardingProcess: document.getElementById('bonus-onboarding-process').value.trim()
-        };
-
-        // Basic validation for job fields
-        if (!jobData.title || !jobData.workType || jobData.locations.length === 0 || isNaN(jobData.totalOpenings) || jobData.totalOpenings <= 0 || jobData.skills.length === 0 || !jobData.description || !jobData.responsibilities || !jobData.eligibility.qualification || jobData.eligibility.preferredCourses.length === 0 || isNaN(jobData.eligibility.graduationYear) || isNaN(jobData.eligibility.minCgpa) || isNaN(jobData.salary.totalCtc) || !jobData.companyDetails.registeredAddress || !jobData.companyDetails.hrContactPersonName || !jobData.companyDetails.hrDesignation || !jobData.companyDetails.hrEmail) {
-            isValid = false;
-            showError('Please fill in all required Job fields.');
-        }
-
-        if (jobData.salary.totalCtc < 0) {
-            isValid = false;
-            showError('Total CTC must be a positive number.');
-        }
-    } else {
-        isValid = false;
-        showError('Please select an opportunity type.');
-    }
-
-    if (jobData.skills && jobData.skills.length === 0) { // Check if skills array exists and is empty
-        isValid = false;
-        showError('At least one required skill must be specified.');
-    }
-
-    // Add a deadline field to the job form in index.html and collect it here
-    // For now, I'll add a placeholder deadline to avoid immediate errors if not present
-    jobData.deadline = new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0]; // Default to 1 year from now
-
-    // You might want to add a deadline input field in your HTML for jobs
-    // <div class="form-group">
-    //     <label for="job-deadline">Application Deadline <span class="required">*</span></label>
-    //     <input type="date" id="job-deadline" required>
-    // </div>
-    // And then collect it like: jobData.deadline = document.getElementById('job-deadline').value;
-
-    if (!jobData.deadline || new Date(jobData.deadline) < new Date()) {
-        isValid = false;
-        showError('Please provide a valid future deadline.');
-    }
-
-
-    if (isValid) {
-        try {
-            AppState.postJob(jobData);
-            closeModal('job-form-modal');
-            loadCompanyJobs();
-            showSuccess('Job posted successfully!');
-            document.getElementById('job-form').reset();
-            jobRequiredSkills = [];
-            renderJobSkills();
-            resetCollapsibleSections();
-            customComponentCount = 0;
-            document.querySelectorAll('.custom-salary-component-row').forEach(row => row.remove());
-            calculateInHandSalary();
-        } catch (error) {
-            console.error('Error posting job:', error);
-            showError('An error occurred while posting the job. Please try again.');
-        }
-    }
-
-    submitBtn.classList.remove('loading');
-    submitBtn.disabled = false;
-});
 
 // Splash Screen Logic
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     AppState.init();
     setupCollapsibleSections(); // Initialize collapsible sections on DOM load
-    
+
     // Show splash screen initially
     const splashScreen = document.getElementById('splash-screen');
-    
-    // Hide splash screen after 7 seconds and show landing page
+
+    // Hide splash screen after 6 seconds and show landing page
     setTimeout(() => {
         splashScreen.classList.add('hidden');
         showPage('landing-page');
@@ -1886,7 +2053,7 @@ function generateLoginCode(role) {
     return prefix + randomNum;
 }
 
-document.getElementById('check-status-form').addEventListener('submit', async function(e) {
+document.getElementById('check-status-form').addEventListener('submit', async function (e) {
     e.preventDefault();
     const submitBtn = this.querySelector('button[type="submit"]');
     submitBtn.classList.add('loading');
@@ -1910,12 +2077,14 @@ document.getElementById('check-status-form').addEventListener('submit', async fu
             showError(result.message, 'check-status-message');
         }
     } catch (error) {
+        console.error('Error checking status:', error);
         showError('An error occurred while checking status.', 'check-status-message');
     }
 
     submitBtn.classList.remove('loading');
     submitBtn.disabled = false;
 });
+
 
 // Add this function to show status results
 function showStatusResult(status, loginCode) {
@@ -1925,30 +2094,30 @@ function showStatusResult(status, loginCode) {
 
     copyBtn.style.display = 'none';
     downloadBtn.style.display = 'none';
-    
-    switch(status) {
+
+    switch (status) {
         case 'verified':
             resultContent.innerHTML = `
                 <div style="font-size: 48px;">✅</div>
                 <h3>Your account has been verified!</h3>
                 <p>Your login code is:</p>
                 <p style="font-size: 24px; font-weight: bold; margin: 10px 0;">${loginCode}</p>
-                <p>Use this code along with your password to login.</p>
+                <p>Use this code along with your password to login${AppState.currentUser?.role === 'tnp' ? ', or use your email for T&P login.' : '.'}</p>
             `;
             copyBtn.style.display = 'inline-block';
             downloadBtn.style.display = 'inline-block';
-            
+
             // Set up copy button
-            copyBtn.onclick = function() {
+            copyBtn.onclick = function () {
                 navigator.clipboard.writeText(loginCode).then(() => {
-                    alert('Login code copied to clipboard!');
+                    showSuccess('Login code copied to clipboard!');
                 }).catch(() => {
-                    alert('Failed to copy login code.');
+                    showError('Failed to copy login code.');
                 });
             };
-            
+
             // Set up download button
-            downloadBtn.onclick = function() {
+            downloadBtn.onclick = function () {
                 const blob = new Blob([`CampusHire Login Credentials\n\nLogin Code: ${loginCode}\nPassword: [your registered password]`], { type: 'text/plain' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
@@ -1960,7 +2129,7 @@ function showStatusResult(status, loginCode) {
                 URL.revokeObjectURL(url);
             };
             break;
-            
+
         case 'pending':
             resultContent.innerHTML = `
                 <div style="font-size: 48px;">⏳</div>
@@ -1969,7 +2138,7 @@ function showStatusResult(status, loginCode) {
                 <p>Please check back later.</p>
             `;
             break;
-            
+
         case 'blocked':
             resultContent.innerHTML = `
                 <div style="font-size: 48px;">⛔</div>
@@ -1978,7 +2147,7 @@ function showStatusResult(status, loginCode) {
                 <p>Please contact the placement office for more information.</p>
             `;
             break;
-            
+
         case 'not-found':
             resultContent.innerHTML = `
                 <div style="font-size: 48px;">❌</div>
@@ -1988,17 +2157,6 @@ function showStatusResult(status, loginCode) {
             `;
             break;
     }
-    
+
     showModal('status-result-modal');
 }
-
-
-
-
-
-
-
-
-
-
-    

@@ -1,30 +1,28 @@
 <?php
-header('Content-Type: application/json');
-require 'config.php';
 session_start();
+header('Content-Type: application/json');
+include '../config/db_connect.php';
 
-if (!isset($_SESSION['user'])) {
-    echo json_encode(['success' => false, 'message' => 'Unauthorized']);
-    exit;
+$query = "SELECT * FROM jobs";
+$stmt = $pdo->prepare($query);
+$stmt->execute();
+$jobs = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+foreach ($jobs as &$job) {
+    $job['skills'] = json_decode($job['skills'], true) ?: [];
+    $job['locations'] = json_decode($job['locations'], true) ?: [];
+    $job['eligibility_courses'] = json_decode($job['eligibility_courses'], true) ?: [];
+    $job['salary_breakdown'] = json_decode($job['salary_breakdown'], true) ?: [];
+    $job['branch_locations'] = json_decode($job['branch_locations'], true) ?: [];
+    
+    $stmt = $pdo->prepare("SELECT student_id FROM applications WHERE job_id = :id");
+    $stmt->execute(['id' => $job['id']]);
+    $job['applicants'] = $stmt->fetchAll(PDO::FETCH_COLUMN);
+    
+    $stmt = $pdo->prepare("SELECT student_id FROM applications WHERE job_id = :id AND status = 'accepted'");
+    $stmt->execute(['id' => $job['id']]);
+    $job['selected'] = $stmt->fetchAll(PDO::FETCH_COLUMN);
 }
 
-try {
-    $query = $_SESSION['role'] === 'company' ? "SELECT * FROM jobs WHERE company_id = ?" : "SELECT * FROM jobs";
-    $stmt = $pdo->prepare($query);
-    $params = $_SESSION['role'] === 'company' ? [$_SESSION['user']['id']] : [];
-    $stmt->execute($params);
-    $jobs = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    foreach ($jobs as &$job) {
-        $job['locations'] = json_decode($job['locations'] ?? '[]');
-        $job['skills'] = json_decode($job['skills'] ?? '[]');
-        $job['applicants'] = json_decode($job['applicants'] ?? '[]');
-        $job['selected'] = json_decode($job['selected'] ?? '[]');
-        $job['eligibility_preferred_courses'] = json_decode($job['eligibility_preferred_courses'] ?? '[]');
-        $job['salary_breakdown'] = json_decode($job['salary_breakdown'] ?? '{}');
-        $job['company_details_branch_locations'] = json_decode($job['company_details_branch_locations'] ?? '[]');
-    }
-    echo json_encode(['success' => true, 'data' => $jobs]);
-} catch (Exception $e) {
-    echo json_encode(['success' => false, 'message' => 'Error: ' . $e->getMessage()]);
-}
+echo json_encode(['success' => true, 'data' => $jobs]);
 ?>

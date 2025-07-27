@@ -1,40 +1,32 @@
 <?php
 header('Content-Type: application/json');
-require 'config.php';
+include '../config/db_connect.php';
 
 $data = json_decode(file_get_contents('php://input'), true);
-$email = $data['email'];
-$password = $data['password'];
+$email = $data['email'] ?? '';
+$password = $data['password'] ?? '';
 
-try {
-    $user = null;
-    $role = null;
+if (!$email || !$password) {
+    echo json_encode(['success' => false, 'message' => 'Email and password are required']);
+    exit;
+}
 
-    $stmt = $pdo->prepare("SELECT * FROM students WHERE email = ?");
-    $stmt->execute([$email]);
-    $user = $stmt->fetch(PDO::FETCH_ASSOC);
-    $role = 'student';
+$query = "SELECT status, login_code, password, role FROM users WHERE email = :email";
+$stmt = $pdo->prepare($query);
+$stmt->execute(['email' => $email]);
+$user = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    if (!$user) {
-        $stmt = $pdo->prepare("SELECT * FROM companies WHERE hr_email = ?");
-        $stmt->execute([$email]);
-        $user = $stmt->fetch(PDO::FETCH_ASSOC);
-        $role = 'company';
+if ($user && password_verify($password, $user['password'])) {
+    $response = [
+        'success' => true,
+        'status' => $user['status'],
+        'loginCode' => $user['login_code']
+    ];
+    if ($user['role'] === 'tnp') {
+        $response['message'] = "Your account is verified. Use login code: {$user['login_code']} to log in.";
     }
-
-    if (!$user) {
-        echo json_encode(['success' => false, 'status' => 'not-found', 'message' => 'No registration found']);
-        exit;
-    }
-
-    if (!password_verify($password, $user['password'])) {
-        echo json_encode(['success' => false, 'status' => 'not-found', 'message' => 'Invalid password']);
-        exit;
-    }
-
-    $status = $user['is_blocked'] ? 'blocked' : $user['status'];
-    echo json_encode(['success' => true, 'status' => $status, 'loginCode' => $user['login_code']]);
-} catch (Exception $e) {
-    echo json_encode(['success' => false, 'message' => 'Error: ' . $e->getMessage()]);
+    echo json_encode($response);
+} else {
+    echo json_encode(['success' => false, 'message' => 'Invalid credentials', 'status' => 'not-found']);
 }
 ?>

@@ -1465,6 +1465,137 @@ body {
     margin-bottom: 15px;
 }
 
+/* Inside MultipleFiles/styles.css */
+
+/* Add these new styles */
+
+/* Form Sections (Fieldset) */
+.form-section {
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 25px 30px;
+    margin-bottom: 30px;
+    background-color: white;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+}
+
+.form-section legend {
+    font-size: 20px;
+    font-weight: 700;
+    color: #4b2e2e;
+    padding: 0 10px;
+    margin-left: -10px; /* Adjust to align with fieldset border */
+    background-color: #fdf6e3; /* Match body background or a light accent */
+    border-radius: 5px;
+}
+
+/* Adjust existing form styles for better spacing within sections */
+.form .form-group {
+    margin-bottom: 18px; /* Slightly reduce margin for tighter grouping */
+}
+
+.form .form-group:last-child {
+    margin-bottom: 0; /* Remove bottom margin for last group in a section */
+}
+
+/* Refine two-column layout for better responsiveness */
+@media (max-width: 768px) {
+    .two-column {
+        grid-template-columns: 1fr; /* Stack columns on small screens */
+    }
+}
+
+/* Improve skills container appearance */
+.skills-container {
+    border: 1px solid #d1d5db; /* Lighter border */
+    background-color: #f9fafb; /* Light background */
+    min-height: 50px; /* Ensure it's visible even if empty */
+    padding: 10px;
+    align-items: flex-start; /* Align tags to the top */
+}
+
+.skill-tag {
+    background-color: #e0f2f7; /* A softer blue */
+    color: #00796b; /* Darker teal text */
+    padding: 8px 15px; /* Slightly larger padding */
+    border-radius: 20px; /* More rounded pills */
+    font-size: 13px;
+    font-weight: 600;
+    display: inline-flex; /* Use inline-flex for better alignment */
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 5px; /* Space between tags */
+}
+
+.skill-tag .remove-skill {
+    color: #00796b; /* Match text color */
+    font-size: 18px; /* Larger 'x' */
+    line-height: 1;
+    padding: 0;
+    margin: 0;
+    background: none;
+    border: none;
+    cursor: pointer;
+}
+
+/* Custom skill input group alignment */
+.custom-skill-input-group {
+    align-items: center; /* Vertically align input and button */
+    gap: 10px;
+}
+
+.custom-skill-input-group input {
+    flex-grow: 1;
+    padding: 10px 12px;
+}
+
+.custom-skill-input-group .btn {
+    padding: 10px 20px;
+}
+
+/* Resume preview styling */
+#resume-preview {
+    font-style: italic;
+    color: #6b7280;
+    margin-top: 10px;
+    font-size: 13px;
+}
+
+/* Collapsible section within form */
+.collapsible-section .collapsible-header {
+    background-color: #f3f4f6; /* Lighter background for nested collapsible */
+    border-bottom: 1px solid #e5e7eb;
+    border-radius: 8px; /* Apply border-radius to header */
+    margin-bottom: 0; /* Remove margin from header */
+}
+
+.collapsible-section .collapsible-content {
+    border-top: none; /* Remove top border if header has bottom border */
+    border-radius: 0 0 8px 8px; /* Apply border-radius to content bottom */
+    padding-top: 15px; /* Add padding to top of content */
+}
+
+.collapsible-section .collapsible-content .form-group {
+    padding-top: 10px;
+    padding-bottom: 10px;
+    border-bottom: 1px dashed #e5e7eb;
+}
+
+.collapsible-section .collapsible-content .form-group:last-child {
+    border-bottom: none;
+    padding-bottom: 15px;
+}
+
+/* General form button spacing */
+.form button[type="submit"] {
+    margin-top: 30px; /* More space above the submit button */
+}
+
+/* Message display for edit page */
+#student-profile-edit-message {
+    margin-bottom: 20px;
+}
+
 
 
 

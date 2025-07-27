@@ -1,34 +1,47 @@
 <?php
-header('Content-Type: application/json');
-require 'config.php';
 session_start();
+header('Content-Type: application/json');
+include '../config/db_connect.php';
 
-if (!isset($_SESSION['user']) || $_SESSION['role'] !== 'student') {
+if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'student') {
     echo json_encode(['success' => false, 'message' => 'Unauthorized']);
     exit;
 }
 
 $data = json_decode(file_get_contents('php://input'), true);
-$studentId = $_SESSION['user']['id'];
-$jobId = $data['jobId'];
-$coverLetter = $data['coverLetter'];
+$job_id = $data['jobId'] ?? '';
+$cover_letter = $data['coverLetter'] ?? '';
+
+if (!$job_id || !$cover_letter) {
+    echo json_encode(['success' => false, 'message' => 'Invalid input']);
+    exit;
+}
 
 try {
-    $stmt = $pdo->prepare("SELECT COUNT(*) FROM applications WHERE student_id = ? AND job_id = ?");
-    $stmt->execute([$studentId, $jobId]);
-    if ($stmt->fetchColumn() > 0) {
-        echo json_encode(['success' => false, 'message' => 'You have already applied for this job.']);
+    $stmt = $pdo->prepare("SELECT id FROM jobs WHERE id = :job_id AND deadline >= CURDATE()");
+    $stmt->execute(['job_id' => $job_id]);
+    if (!$stmt->fetch()) {
+        echo json_encode(['success' => false, 'message' => 'Job not found or expired']);
         exit;
     }
 
-    $stmt = $pdo->prepare("INSERT INTO applications (id, student_id, job_id, status, applied_date, cover_letter) VALUES (?, ?, ?, 'pending', CURDATE(), ?)");
-    $stmt->execute([uniqid(), $studentId, $jobId, $coverLetter]);
+    $stmt = $pdo->prepare("SELECT id FROM applications WHERE student_id = :student_id AND job_id = :job_id");
+    $stmt->execute(['student_id' => $_SESSION['user_id'], 'job_id' => $job_id]);
+    if ($stmt->fetch()) {
+        echo json_encode(['success' => false, 'message' => 'You have already applied for this job']);
+        exit;
+    }
 
-    $stmt = $pdo->prepare("UPDATE jobs SET applicants = JSON_ARRAY_APPEND(applicants, '$', ?) WHERE id = ?");
-    $stmt->execute([$studentId, $jobId]);
+    $query = "INSERT INTO applications (student_id, job_id, cover_letter, applied_date, status) VALUES (:student_id, :job_id, :cover_letter, CURDATE(), 'pending')";
+    $stmt = $pdo->prepare($query);
+    $stmt->execute([
+        'student_id' => $_SESSION['user_id'],
+        'job_id' => $job_id,
+        'cover_letter' => $cover_letter
+    ]);
 
-    echo json_encode(['success' => true, 'message' => 'Application submitted successfully!']);
+    echo json_encode(['success' => true, 'message' => 'Application submitted successfully']);
 } catch (Exception $e) {
-    echo json_encode(['success' => false, 'message' => 'Error: ' . $e->getMessage()]);
+    echo json_encode(['success' => false, 'message' => 'Error applying for job: ' . $e->getMessage()]);
 }
 ?>

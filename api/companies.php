@@ -12,6 +12,7 @@ $query = "SELECT u.id, u.name, u.email, u.phone, u.status, c.company_name, c.hr_
           FROM users u
           JOIN companies c ON u.id = c.user_id
           WHERE u.role = 'company'";
+        
 $stmt = $pdo->prepare($query);
 $stmt->execute();
 $companies = $stmt->fetchAll(PDO::FETCH_ASSOC);

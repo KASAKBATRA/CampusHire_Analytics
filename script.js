@@ -21,6 +21,7 @@ const AppState = {
 };
 
 function showPage(pageId) {
+    console.log('showPage called with:', pageId);
     document.querySelectorAll('.page').forEach(page => page.classList.remove('active'));
     document.getElementById(pageId).classList.add('active');
     AppState.currentPage = pageId;
@@ -28,7 +29,10 @@ function showPage(pageId) {
     if (pageId === 'student-dashboard') loadStudentDashboard();
     else if (pageId === 'tnp-dashboard') loadTnpDashboard();
     else if (pageId === 'company-dashboard') loadCompanyDashboard();
-    // student-profile-edit-page is handled by editStudentProfile() directly
+    else if (pageId === 'student-profile-edit-page') {
+        console.log('Calling editStudentProfile from showPage');
+        editStudentProfile();
+    }
 }
 
 function showModal(modalId) {
@@ -97,6 +101,26 @@ function showRoleFields() {
         const activeFields = document.getElementById(`${role}-fields`);
         activeFields.classList.add('active');
         activeFields.querySelectorAll('input, select').forEach(el => el.disabled = false);
+
+        // Additional logic: if role is student, toggle department field based on course
+        if (role === 'student') {
+            const courseSelect = document.getElementById('register-course');
+            const departmentSelect = document.getElementById('register-department');
+
+            function toggleDepartmentField() {
+                if (courseSelect.value === 'B.Tech') {
+                    departmentSelect.disabled = false;
+                    departmentSelect.required = true;
+                } else {
+                    departmentSelect.disabled = true;
+                    departmentSelect.required = false;
+                    departmentSelect.value = '';
+                }
+            }
+
+            courseSelect.addEventListener('change', toggleDepartmentField);
+            toggleDepartmentField(); // Initial call to set correct state
+        }
     }
 }
 
@@ -168,6 +192,8 @@ document.getElementById('register-form').addEventListener('submit', async functi
     };
 
     if (userData.role === 'student') {
+        userData.rollno = document.getElementById('register-rollno').value.trim();
+        userData.department = document.getElementById('register-department').value;
         userData.course = document.getElementById('register-course').value;
     } else if (userData.role === 'tnp') {
         userData.employeeId = document.getElementById('register-employee-id').value.trim();
@@ -387,7 +413,9 @@ function loadStudentProfile() {
 }
 
 function editStudentProfile() {
+    console.log('editStudentProfile called');
     const student = AppState.currentUser;
+    console.log('Current user:', student);
     if (!student || student.role !== 'student') {
         showError('Error: No student logged in.');
         return;
@@ -418,10 +446,11 @@ function editStudentProfile() {
             if (option) {
                 option.selected = true;
             }
-            const skillTag = document.createElement('span');
-            skillTag.className = 'skill-tag';
-            skillTag.textContent = skill;
-            selectedSkillsDisplay.appendChild(skillTag);
+            // Removed automatic addition of skill tags below the dropdown to avoid clutter
+            // const skillTag = document.createElement('span');
+            // skillTag.className = 'skill-tag';
+            // skillTag.textContent = skill;
+            // selectedSkillsDisplay.appendChild(skillTag);
         });
     }
 
@@ -435,14 +464,16 @@ function editStudentProfile() {
 
     const newAddCustomSkillBtnHandler = () => {
         const customSkill = customSkillInput.value.trim();
-        if (customSkill && !student.skills.includes(customSkill)) {
+        const skillsSelect = document.getElementById('edit-student-skills');
+        const selectedSkills = Array.from(skillsSelect.selectedOptions).map(opt => opt.value);
+        if (customSkill && !student.skills.includes(customSkill) && !selectedSkills.includes(customSkill)) {
             student.skills.push(customSkill);
             const skillTag = document.createElement('span');
             skillTag.className = 'skill-tag';
             skillTag.textContent = customSkill;
             selectedSkillsDisplay.appendChild(skillTag);
             customSkillInput.value = '';
-        } else if (student.skills.includes(customSkill)) {
+        } else if (student.skills.includes(customSkill) || selectedSkills.includes(customSkill)) {
             showError('Skill already added.');
         }
     };
@@ -468,10 +499,18 @@ function editStudentProfile() {
     const resumePreview = document.getElementById('resume-preview');
     resumePreview.textContent = student.resume_path ? `Current resume: ${student.resume_path.split('/').pop()}` : 'No resume uploaded'; // Corrected field name
 
-    // Profile picture preview
+    // Profile picture preview and avatar circle
     const profilePictureInput = document.getElementById('edit-student-profile-picture');
     const profilePicturePreview = document.getElementById('profile-picture-preview');
-    profilePicturePreview.textContent = student.profile_picture_path ? `Current picture: ${student.profile_picture_path.split('/').pop()}` : 'No profile picture uploaded';
+    const avatarCircle = document.getElementById('avatar-preview-circle');
+    // Initialize avatar circle
+    if (student.profile_picture_path) {
+        avatarCircle.style.backgroundImage = `url(${student.profile_picture_path})`;
+        profilePicturePreview.textContent = `Current picture: ${student.profile_picture_path.split('/').pop()}`;
+    } else {
+        avatarCircle.style.backgroundImage = 'none';
+        profilePicturePreview.textContent = 'No profile picture uploaded';
+    }
 
     // Remove previous event listener to prevent multiple bindings
     if (resumeInput._handler) {
@@ -488,12 +527,24 @@ function editStudentProfile() {
     resumeInput._handler = newResumeInputHandler; // Store reference to handler
 
     const newProfilePictureInputHandler = function() {
-        profilePicturePreview.textContent = this.files[0] ? `Selected: ${this.files[0].name}` : 'No file selected';
+        const file = this.files[0];
+        if (file) {
+            const url = URL.createObjectURL(file);
+            avatarCircle.style.backgroundImage = `url(${url})`;
+            profilePicturePreview.textContent = `Selected: ${file.name}`;
+        } else {
+            // Revert to original if no file
+            if (student.profile_picture_path) {
+                avatarCircle.style.backgroundImage = `url(${student.profile_picture_path})`;
+            } else {
+                avatarCircle.style.backgroundImage = 'none';
+            }
+            profilePicturePreview.textContent = 'No file selected';
+        }
     };
     profilePictureInput.addEventListener('change', newProfilePictureInputHandler);
     profilePictureInput._handler = newProfilePictureInputHandler; // Store reference to handler
 
-    showPage('student-profile-edit-page'); // Show the edit page
 }
 
 document.getElementById('student-profile-edit-form').addEventListener('submit', async function(e) {

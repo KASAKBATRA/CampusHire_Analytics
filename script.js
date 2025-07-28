@@ -379,12 +379,6 @@ function loadStudentProfile() {
     document.getElementById('student-cgpa').textContent = `CGPA: ${student.cgpa || 'N/A'}`;
     document.getElementById('student-phone').textContent = `Phone: ${student.phone || '-'}`;
 
-    const skillsDropdown = document.getElementById('student-skills-dropdown');
-    if (skillsDropdown && student.skills) {
-        Array.from(skillsDropdown.options).forEach(option => {
-            option.selected = student.skills.includes(option.value);
-        });
-    }
 
     const applications = AppState.applications.filter(a => a.student_id === student.id);
     document.getElementById('applications-count').textContent = applications.length;
@@ -401,6 +395,7 @@ function editStudentProfile() {
 
     document.getElementById('edit-student-name').value = student.name || '';
     document.getElementById('edit-student-phone').value = student.phone || '';
+    document.getElementById('edit-student-department').value = student.department || '';
     document.getElementById('edit-student-github').value = student.github || '';
     document.getElementById('edit-student-linkedin').value = student.linkedin || ''; // Corrected field name
     document.getElementById('edit-student-overall-cgpa').value = student.cgpa || '';
@@ -473,9 +468,17 @@ function editStudentProfile() {
     const resumePreview = document.getElementById('resume-preview');
     resumePreview.textContent = student.resume_path ? `Current resume: ${student.resume_path.split('/').pop()}` : 'No resume uploaded'; // Corrected field name
 
+    // Profile picture preview
+    const profilePictureInput = document.getElementById('edit-student-profile-picture');
+    const profilePicturePreview = document.getElementById('profile-picture-preview');
+    profilePicturePreview.textContent = student.profile_picture_path ? `Current picture: ${student.profile_picture_path.split('/').pop()}` : 'No profile picture uploaded';
+
     // Remove previous event listener to prevent multiple bindings
     if (resumeInput._handler) {
         resumeInput.removeEventListener('change', resumeInput._handler);
+    }
+    if (profilePictureInput._handler) {
+        profilePictureInput.removeEventListener('change', profilePictureInput._handler);
     }
 
     const newResumeInputHandler = function() {
@@ -483,6 +486,12 @@ function editStudentProfile() {
     };
     resumeInput.addEventListener('change', newResumeInputHandler);
     resumeInput._handler = newResumeInputHandler; // Store reference to handler
+
+    const newProfilePictureInputHandler = function() {
+        profilePicturePreview.textContent = this.files[0] ? `Selected: ${this.files[0].name}` : 'No file selected';
+    };
+    profilePictureInput.addEventListener('change', newProfilePictureInputHandler);
+    profilePictureInput._handler = newProfilePictureInputHandler; // Store reference to handler
 
     showPage('student-profile-edit-page'); // Show the edit page
 }
@@ -506,6 +515,7 @@ document.getElementById('student-profile-edit-form').addEventListener('submit', 
         id: currentUser.id,
         name: document.getElementById('edit-student-name').value.trim(),
         phone: document.getElementById('edit-student-phone').value.trim(),
+        department: document.getElementById('edit-student-department').value,
         github: document.getElementById('edit-student-github').value.trim(),
         linkedin: document.getElementById('edit-student-linkedin').value.trim(), // Corrected field name
         cgpa: parseFloat(document.getElementById('edit-student-overall-cgpa').value) || 0,
@@ -520,7 +530,7 @@ document.getElementById('student-profile-edit-form').addEventListener('submit', 
                                 .map(tag => tag.textContent.replace(' ×', '').trim()); // Assuming '×' is added for removal
     updatedData.skills = [...new Set([...selectedDropdownSkills, ...currentCustomSkills])];
 
-    if (!updatedData.name || !updatedData.phone || !updatedData.github || !updatedData.linkedin || !updatedData.cgpa || !updatedData.tenth_percentage || !updatedData.twelfth_percentage || !updatedData.interest || !updatedData.grad_year || updatedData.skills.length === 0) {
+    if (!updatedData.name || !updatedData.phone || !updatedData.github || !updatedData.linkedin || !updatedData.cgpa || !updatedData.tenth_percentage || !updatedData.twelfth_percentage || !updatedData.interest || !updatedData.grad_year || updatedData.skills.length === 0 || !updatedData.department) {
         showError('Please fill in all required fields.');
         submitBtn.classList.remove('loading');
         submitBtn.disabled = false;
@@ -549,8 +559,11 @@ document.getElementById('student-profile-edit-form').addEventListener('submit', 
     }
 
     const resumeInput = document.getElementById('edit-student-resume');
-    const file = resumeInput.files[0];
+    const profilePictureInput = document.getElementById('edit-student-profile-picture');
+    const resumeFile = resumeInput.files[0];
+    const profilePictureFile = profilePictureInput.files[0];
     let resume_path = currentUser.resume_path; // Keep existing path if no new file
+    let profile_picture_path = currentUser.profile_picture_path; // Keep existing path if no new file
 
     const formData = new FormData();
     for (const key in updatedData) {
@@ -563,19 +576,29 @@ document.getElementById('student-profile-edit-form').addEventListener('submit', 
         }
     }
 
-    if (file) {
-        if (file.type !== 'application/pdf') {
+    if (resumeFile) {
+        if (resumeFile.type !== 'application/pdf') {
             showError('Please upload a valid PDF file for the resume.');
             submitBtn.classList.remove('loading');
             submitBtn.disabled = false;
             return;
         }
-        formData.append('resume', file); // Append the file
+        formData.append('resume', resumeFile); // Append the resume file
+    }
+
+    if (profilePictureFile) {
+        if (!profilePictureFile.type.startsWith('image/')) {
+            showError('Please upload a valid image file for the profile picture.');
+            submitBtn.classList.remove('loading');
+            submitBtn.disabled = false;
+            return;
+        }
+        formData.append('profile_picture', profilePictureFile); // Append the profile picture file
     }
 
     try {
         // Assuming you have an API endpoint for updating student profiles
-        const response = await fetch('api/update_student_profile.php', { // You need to create this PHP file
+        const response = await fetch('api/update_student_profile.php', {
             method: 'POST',
             body: formData // FormData handles Content-Type automatically
         });
@@ -583,7 +606,7 @@ document.getElementById('student-profile-edit-form').addEventListener('submit', 
 
         if (result.success) {
             // Update AppState.currentUser with the new data from the server response
-            AppState.currentUser = { ...AppState.currentUser, ...updatedData, profile_completed: true, resume_path: result.resume_path || resume_path };
+            AppState.currentUser = { ...AppState.currentUser, ...updatedData, profile_completed: true, resume_path: result.resume_path || resume_path, profile_picture_path: result.profile_picture_path || profile_picture_path };
             // Refresh the student list in AppState if needed for other dashboards
             await loadStudentDashboard(); // Reload dashboard data to reflect changes
             showPage('student-dashboard');
@@ -610,6 +633,9 @@ function loadStudentJobs() {
     const jobType = document.getElementById('job-filter').value;
     const department = document.getElementById('department-filter').value;
 
+    console.log('Loading student jobs. Total jobs:', AppState.jobs.length);
+    console.log('Current student:', student);
+
     const jobs = AppState.jobs.filter(job => {
         // Check if job.eligibility_courses is an array before using .includes()
         const jobEligibilityCourses = Array.isArray(job.eligibility_courses) ? job.eligibility_courses : [];
@@ -620,8 +646,13 @@ function loadStudentJobs() {
         const matchesDept = !department || jobEligibilityCourses.includes(department);
         const isActive = job.deadline ? new Date(job.deadline) >= new Date() : true;
 
+        console.log(`Job ${job.id} eligibility: ${isEligible}, matchesType: ${matchesType}, matchesDept: ${matchesDept}, isActive: ${isActive}`);
+        console.log('Job eligibility_courses:', jobEligibilityCourses, 'Student course:', student.course, 'Student CGPA:', student.cgpa, 'Job min CGPA:', job.eligibility_min_cgpa);
+
         return isEligible && matchesType && matchesDept && isActive;
     });
+
+    console.log('Filtered jobs count:', jobs.length);
 
     const jobsGrid = document.getElementById('jobs-grid');
     jobsGrid.innerHTML = jobs.length > 0 ? jobs.map(job => {
@@ -661,6 +692,7 @@ function filterJobs() {
 }
 
 async function applyJob(jobId) {
+    console.log('Applying for job:', jobId);
     const coverLetter = prompt('Enter a brief cover letter:');
     if (!coverLetter) return;
 
@@ -1556,6 +1588,7 @@ document.getElementById('job-form').addEventListener('submit', async function(e)
             await loadCompanyDashboard(); // Reload company jobs and other data
             await loadCompanyJobs(); // Refresh jobs list explicitly
             showCompanySection('jobs'); // Switch to jobs section to show posted jobs
+            await loadStudentDashboard(); // Refresh student dashboard jobs to show new job
             showSuccess(result.message);
             this.reset();
             jobRequiredSkills = [];
@@ -1581,7 +1614,7 @@ document.getElementById('job-form').addEventListener('submit', async function(e)
 
 function loadCompanyJobs() {
     const company = AppState.currentUser;
-    const jobs = AppState.jobs.filter(j => j.company_id === company.id); // Corrected field name
+    const jobs = AppState.jobs.filter(j => j.company_id === company.company_id); // Use company_id from currentUser
 
     const jobsList = document.getElementById('company-jobs-list');
     jobsList.innerHTML = jobs.length > 0 ? jobs.map(job => {

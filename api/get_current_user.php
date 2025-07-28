@@ -32,7 +32,7 @@ if (isset($_SESSION['user_id'])) {
             $stmt->execute(['id' => $user_id]);
             $user = array_merge($user, $stmt->fetch(PDO::FETCH_ASSOC) ?: []);
         } elseif ($user['role'] === 'company') {
-            $stmt = $pdo->prepare("SELECT company_name, hr_id, hr_name, industry, website FROM companies WHERE user_id = :id");
+            $stmt = $pdo->prepare("SELECT id AS company_id, company_name, hr_id, hr_name, industry, website FROM companies WHERE user_id = :id");
             $stmt->execute(['id' => $user_id]);
             $user = array_merge($user, $stmt->fetch(PDO::FETCH_ASSOC) ?: []);
         }

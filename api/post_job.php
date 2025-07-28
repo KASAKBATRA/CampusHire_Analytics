@@ -11,7 +11,17 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'company') {
 }
 
 // Removed JSON decode from php://input
-$company_id = $_SESSION['user_id'];
+$user_id = $_SESSION['user_id'];
+// Fetch company id from companies table using user_id
+$stmt = $pdo->prepare("SELECT id FROM companies WHERE user_id = :user_id");
+$stmt->execute(['user_id' => $user_id]);
+$company = $stmt->fetch(PDO::FETCH_ASSOC);
+$company_id = $company ? $company['id'] : null;
+
+if (!$company_id) {
+    echo json_encode(['success' => false, 'message' => 'Company not found']);
+    exit;
+}
 $job_type = $_POST['type'] ?? '';
 
 if (!$job_type) {

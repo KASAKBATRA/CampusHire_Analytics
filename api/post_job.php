@@ -1,3 +1,4 @@
+
 <?php
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
@@ -10,7 +11,10 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'company') {
     exit;
 }
 
-// Removed JSON decode from php://input
+// Debug: Log received data
+error_log("POST data: " . print_r($_POST, true));
+error_log("FILES data: " . print_r($_FILES, true));
+
 $user_id = $_SESSION['user_id'];
 // Fetch company id from companies table using user_id
 $stmt = $pdo->prepare("SELECT id FROM companies WHERE user_id = :user_id");
@@ -22,6 +26,7 @@ if (!$company_id) {
     echo json_encode(['success' => false, 'message' => 'Company not found']);
     exit;
 }
+
 $job_type = $_POST['type'] ?? '';
 
 if (!$job_type) {
@@ -83,26 +88,24 @@ try {
         company_id, type, title, position, domain, openings, duration, start_date, stipend, fulltime_offer,
         work_type, timings, locations, skills, description, responsibilities, eligibility_qualification,
         eligibility_courses, eligibility_grad_year, eligibility_min_cgpa, salary_ctc, salary_breakdown,
-        leaves_total, leaves_cl, leaves_sl, leaves_el, leaves_carry_forward, leaves_maternity_paternity,
-        leaves_maternity_days, holiday_list_path, benefits_medical_insurance, benefits_coverage_amount,
-        benefits_family_included, benefits_wfh, benefits_internet, benefits_laptop, benefits_dress_code,
+        leaves_total, leaves_cl, leaves_sl, leaves_el, leaves_carry_forward,
+        benefits_medical_insurance, benefits_coverage_amount,
+        benefits_family_included, benefits_wfh, benefits_internet, benefits_laptop,
         benefits_health_checkups, bond_required, bond_duration_value, bond_duration_unit, bond_penalty_amount,
-        bond_background_check, bond_probation_period, bond_notice_period, bond_non_compete, company_address,
-        hr_contact_name, hr_designation, hr_email, branch_locations, job_description_pdf, salary_structure_pdf,
-        leave_policy_pdf, bond_copy, medical_insurance_terms, growth_opportunities, travel_requirements,
-        id_email_setup_timeline, onboarding_process, posted_date, deadline
+        company_address, hr_contact_name, hr_designation, hr_email, branch_locations, job_description_pdf, 
+        salary_structure_pdf,leave_policy_pdf, bond_copy, medical_insurance_terms, growth_opportunities, 
+        travel_requirements, id_email_setup_timeline, onboarding_process, posted_date, deadline
     ) VALUES (
         :company_id, :type, :title, :position, :domain, :openings, :duration, :start_date, :stipend, :fulltime_offer,
         :work_type, :timings, :locations, :skills, :description, :responsibilities, :eligibility_qualification,
         :eligibility_courses, :eligibility_grad_year, :eligibility_min_cgpa, :salary_ctc, :salary_breakdown,
-        :leaves_total, :leaves_cl, :leaves_sl, :leaves_el, :leaves_carry_forward, :leaves_maternity_paternity,
-        :leaves_maternity_days, :holiday_list_path, :benefits_medical_insurance, :benefits_coverage_amount,
-        :benefits_family_included, :benefits_wfh, :benefits_internet, :benefits_laptop, :benefits_dress_code,
+        :leaves_total, :leaves_cl, :leaves_sl, :leaves_el, :leaves_carry_forward,
+        :benefits_medical_insurance, :benefits_coverage_amount,
+        :benefits_family_included, :benefits_wfh, :benefits_internet, :benefits_laptop,
         :benefits_health_checkups, :bond_required, :bond_duration_value, :bond_duration_unit, :bond_penalty_amount,
-        :bond_background_check, :bond_probation_period, :bond_notice_period, :bond_non_compete, :company_address,
-        :hr_contact_name, :hr_designation, :hr_email, :branch_locations, :job_description_pdf, :salary_structure_pdf,
-        :leave_policy_pdf, :bond_copy, :medical_insurance_terms, :growth_opportunities, :travel_requirements,
-        :id_email_setup_timeline, :onboarding_process, :posted_date, :deadline
+        :company_address, :hr_contact_name, :hr_designation, :hr_email, :branch_locations, :job_description_pdf, 
+        :salary_structure_pdf, :leave_policy_pdf, :bond_copy, :medical_insurance_terms, :growth_opportunities, 
+        :travel_requirements,:id_email_setup_timeline, :onboarding_process, :posted_date, :deadline
     )";
 
     $stmt = $pdo->prepare($query);
@@ -124,9 +127,9 @@ try {
         'description' => $_POST['description'] ?? null,
         'responsibilities' => $_POST['responsibilities'] ?? null,
         'eligibility_qualification' => $eligibility['qualification'] ?? null,
-        'eligibility_courses' => json_encode($eligibility['preferredCourses'] ?? []),
-        'eligibility_grad_year' => $eligibility['graduationYear'] ?? null,
-        'eligibility_min_cgpa' => $eligibility['minCgpa'] ?? null,
+        'eligibility_courses' => json_encode($eligibility['eligibility_courses'] ?? $eligibility['preferredCourses'] ?? []),
+        'eligibility_grad_year' => $eligibility['eligibility_grad_year'] ?? $eligibility['graduationYear'] ?? null,
+        'eligibility_min_cgpa' => $eligibility['eligibility_min_cgpa'] ?? $eligibility['minCgpa'] ?? null,
         'salary_ctc' => $_POST['salary_ctc'] ?? null,
         'salary_breakdown' => json_encode($salary_breakdown),
         'leaves_total' => $_POST['leaves_total'] ?? null,
@@ -134,43 +137,34 @@ try {
         'leaves_sl' => $_POST['leaves_sl'] ?? null,
         'leaves_el' => $_POST['leaves_el'] ?? null,
         'leaves_carry_forward' => $leaves_carry_forward,
-        'leaves_maternity_paternity' => $_POST['leaves_maternity_paternity'] ?? null,
-        'leaves_maternity_days' => $_POST['leaves_maternity_days'] ?? null,
-        'holiday_list_path' => $uploaded_files['holiday_list_path'] ?? null,
         'benefits_medical_insurance' => $_POST['benefits_medical_insurance'] ?? null,
         'benefits_coverage_amount' => $_POST['benefits_coverage_amount'] ?? null,
         'benefits_family_included' => $benefits_family_included,
         'benefits_wfh' => $_POST['benefits_wfh'] ?? null,
         'benefits_internet' => $_POST['benefits_internet'] ?? null,
         'benefits_laptop' => $_POST['benefits_laptop'] ?? null,
-        'benefits_dress_code' => $_POST['benefits_dress_code'] ?? null,
         'benefits_health_checkups' => $_POST['benefits_health_checkups'] ?? null,
         'bond_required' => $_POST['bond_required'] ?? null,
         'bond_duration_value' => $_POST['bond_duration_value'] ?? null,
         'bond_duration_unit' => $_POST['bond_duration_unit'] ?? null,
         'bond_penalty_amount' => $_POST['bond_penalty_amount'] ?? null,
-        'bond_background_check' => $_POST['bond_background_check'] ?? null,
-        'bond_probation_period' => $_POST['bond_probation_period'] ?? null,
-        'bond_notice_period' => $_POST['bond_notice_period'] ?? null,
-        'bond_non_compete' => $_POST['bond_non_compete'] ?? null,
-        'company_address' => $companyDetails['registeredAddress'] ?? null,
-        'hr_contact_name' => $companyDetails['hrContactPersonName'] ?? null,
-        'hr_designation' => $companyDetails['hrDesignation'] ?? null,
-        'hr_email' => $companyDetails['hrEmail'] ?? null,
+        'company_address' => $companyDetails['registeredAddress'] ?? $_POST['company_address'] ?? null,
+        'hr_contact_name' => $companyDetails['hrContactPersonName'] ?? $_POST['hr_contact_name'] ?? null,
+        'hr_designation' => $companyDetails['hrDesignation'] ?? $_POST['hr_designation'] ?? null,
+        'hr_email' => $companyDetails['hrEmail'] ?? $_POST['hr_email'] ?? null,
         'branch_locations' => json_encode($branch_locations),
         'job_description_pdf' => $uploaded_files['job_description_pdf'] ?? null,
         'salary_structure_pdf' => $uploaded_files['salary_structure_pdf'] ?? null,
         'leave_policy_pdf' => $uploaded_files['leave_policy_pdf'] ?? null,
         'bond_copy' => $uploaded_files['bond_copy'] ?? null,
         'medical_insurance_terms' => $uploaded_files['medical_insurance_terms'] ?? null,
-        'growth_opportunities' => $bonus['growthOpportunities'] ?? null,
-        'travel_requirements' => $bonus['travelRequirements'] ?? null,
-        'id_email_setup_timeline' => $bonus['idEmailSetupTimeline'] ?? null,
-        'onboarding_process' => $bonus['onboardingProcess'] ?? null,
+        'growth_opportunities' => $bonus['growthOpportunities'] ?? $_POST['growth_opportunities'] ?? null,
+        'travel_requirements' => $bonus['travelRequirements'] ?? $_POST['travel_requirements'] ?? null,
+        'id_email_setup_timeline' => $bonus['idEmailSetupTimeline'] ?? $_POST['id_email_setup_timeline'] ?? null,
+        'onboarding_process' => $bonus['onboardingProcess'] ?? $_POST['onboarding_process'] ?? null,
         'posted_date' => date('Y-m-d'),
         'deadline' => $_POST['deadline'] ?? null
     ]);
-
     $pdo->commit();
     echo json_encode(['success' => true, 'message' => 'Job posted successfully']);
 } catch (Exception $e) {

@@ -6,11 +6,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CampusHire Analytics</title>
     <link rel="stylesheet" href="styles.css">
+    <style>
+        /* Temporary test style to check if styles are working */
+        body { background-color: #f0f0f0 !important; font-family: Arial, sans-serif !important; }
+        .test-style { color: red !important; font-weight: bold !important; }
+    </style>
 </head>
 
 <body>
 
-    <div id="splash-screen" class="splash-screen">
+    <div id="splash-screen" class="splash-screen test-style">
         <div class="logo-container">
             <img src="drdo-logo.png" alt="DRDO Logo" class="splash-logo">
             <img src="sspl-logo.png" alt="SSPL Logo" class="splash-logo">
@@ -267,7 +272,8 @@
             <div class="dashboard-section active" id="student-profile">
                 <div class="section-header">
                     <h3>My Profile</h3>
-                    <button class="btn btn-primary" onclick="showPage('student-profile-edit-page')">Edit Profile</button>
+                    <button class="btn btn-primary" onclick="showPage('student-profile-edit-page')">Edit
+                        Profile</button>
                 </div>
                 <div class="profile-card">
                     <div class="profile-info">
@@ -761,21 +767,27 @@
                             <div class="form-group">
                                 <label for="eligibility-qualification">Qualification Required <span
                                         class="required">*</span></label>
-                                <input type="text" id="eligibility-qualification" placeholder="e.g., B.Tech, MBA">
-                            </div>
-                            <div class="form-group">
-                                <label for="eligibility-preferred-courses">Preferred Courses / Branches</label>
-                                <select id="eligibility-preferred-courses" multiple>
-                                    <option value="CSE">Computer Science Engineering</option>
-                                    <option value="ECE">Electronics & Communication</option>
-                                    <option value="ME">Mechanical Engineering</option>
-                                    <option value="EE">Electrical Engineering</option>
-                                    <option value="IT">Information Technology</option>
-                                    <option value="CE">Civil Engineering</option>
-                                    <option value="MBA">MBA</option>
+                                <select id="eligibility-qualification" required>
+                                    <option value="" disabled selected>Select Qualification</option>
+                                    <option value="BTech">BTech</option>
                                     <option value="BBA">BBA</option>
+                                    <option value="MBA">MBA</option>
+                                    <option value="BA-LLB">BA-LLB</option>
+                                    <option value="LLB">LLB</option>
                                 </select>
-                                <small>Hold Ctrl/Cmd to select multiple courses</small>
+                            </div>
+                            <div class="form-group" id="branches-group" style="display:none;">
+                                <label for="eligibility-preferred-courses">Preferred Branches</label>
+                                <select id="eligibility-preferred-courses" multiple>
+                                    <option value="AI&DS">AI&DS</option>
+                                    <option value="AI&ML">AI&ML</option>
+                                    <option value="CSE">CSE</option>
+                                    <option value="IT">IT</option>
+                                    <option value="CIVIL">CIVIL</option>
+                                    <option value="ELECTRICAL">ELECTRICAL</option>
+                                    <option value="MECHANICAL">MECHANICAL</option>
+                                </select>
+                                <small>Hold Ctrl/Cmd to select multiple branches</small>
                             </div>
                             <div class="form-group">
                                 <label for="eligibility-graduation-year">Graduation Year <span
@@ -809,48 +821,48 @@
                                 <tbody id="salary-breakdown-body">
                                     <tr>
                                         <td>Basic Pay</td>
-                                        <td><input type="number" class="salary-component-amount"
+                                        <td><input type="number" class="salary-component-amount" name="basic-pay"
                                                 data-component="basic-pay" min="0"></td>
                                         <td></td>
                                     </tr>
                                     <tr>
                                         <td>HRA</td>
-                                        <td><input type="number" class="salary-component-amount" data-component="hra"
+                                        <td><input type="number" class="salary-component-amount" name="hra" data-component="hra"
                                                 min="0"></td>
                                         <td></td>
                                     </tr>
                                     <tr>
                                         <td>Special Allowance</td>
-                                        <td><input type="number" class="salary-component-amount"
+                                        <td><input type="number" class="salary-component-amount" name="special-allowance"
                                                 data-component="special-allowance" min="0"></td>
                                         <td></td>
                                     </tr>
                                     <tr>
                                         <td>Bonus</td>
-                                        <td><input type="number" class="salary-component-amount" data-component="bonus"
+                                        <td><input type="number" class="salary-component-amount" name="bonus" data-component="bonus"
                                                 min="0"></td>
-                                        <td><input type="text" class="salary-component-note" data-component="bonus-note"
+                                        <td><input type="text" class="salary-component-note" name="bonus-note" data-component="bonus-note"
                                                 placeholder="Annual/Monthly?"></td>
                                     </tr>
                                     <tr>
                                         <td>PF/ESIC Deduction</td>
-                                        <td><input type="number" class="salary-component-amount"
+                                        <td><input type="number" class="salary-component-amount" name="pf-esic"
                                                 data-component="pf-esic" min="0"></td>
-                                        <td><input type="text" class="salary-component-note"
+                                        <td><input type="text" class="salary-component-note" name="pf-esic-note"
                                                 data-component="pf-esic-note" placeholder="Auto-deducted?"></td>
                                     </tr>
                                     <tr>
                                         <td>Gratuity</td>
-                                        <td><input type="number" class="salary-component-amount"
+                                        <td><input type="number" class="salary-component-amount" name="gratuity"
                                                 data-component="gratuity" min="0"></td>
                                         <td></td>
                                     </tr>
                                     <tr class="custom-salary-component-row" style="display:none;">
-                                        <td><input type="text" class="salary-component-name"
+                                        <td><input type="text" class="salary-component-name" name="custom-name-1"
                                                 data-component="custom-name-1" placeholder="Other (custom field)"></td>
-                                        <td><input type="number" class="salary-component-amount"
+                                        <td><input type="number" class="salary-component-amount" name="custom-amount-1"
                                                 data-component="custom-amount-1" min="0"></td>
-                                        <td><input type="text" class="salary-component-note"
+                                        <td><input type="text" class="salary-component-note" name="custom-note-1"
                                                 data-component="custom-note-1" placeholder="Optional text"></td>
                                     </tr>
                                 </tbody>
@@ -881,10 +893,7 @@
                                 <label for="leaves-el">Earned Leave (EL)</label>
                                 <input type="number" id="leaves-el" min="0">
                             </div>
-                            <div class="form-group">
-                                <label for="leaves-holiday-list">Holiday List Upload (PDF)</label>
-                                <input type="file" id="leaves-holiday-list" accept="application/pdf">
-                            </div>
+                            <!-- Removed Holiday List Upload and Maternity/Paternity Leave fields -->
                             <div class="form-group">
                                 <label for="leaves-carry-forward">Carry Forward Allowed?</label>
                                 <select id="leaves-carry-forward">
@@ -892,18 +901,6 @@
                                     <option value="yes">Yes</option>
                                     <option value="no">No</option>
                                 </select>
-                            </div>
-                            <div class="form-group">
-                                <label for="leaves-maternity-paternity">Maternity / Paternity Leave?</label>
-                                <select id="leaves-maternity-paternity" onchange="toggleMaternityPaternityDays()">
-                                    <option value="" disabled selected>Select</option>
-                                    <option value="yes">Yes</option>
-                                    <option value="no">No</option>
-                                </select>
-                            </div>
-                            <div class="form-group" id="maternity-paternity-days-group" style="display:none;">
-                                <label for="leaves-maternity-paternity-days">Number of Days</label>
-                                <input type="number" id="leaves-maternity-paternity-days" min="0">
                             </div>
                         </div>
                     </div>
@@ -957,11 +954,7 @@
                                     <option value="no">No</option>
                                 </select>
                             </div>
-                            <div class="form-group">
-                                <label for="benefits-dress-code">Dress Code</label>
-                                <input type="text" id="benefits-dress-code"
-                                    placeholder="e.g., Business Casual, Smart Casual">
-                            </div>
+                            <!-- Removed Dress Code field -->
                             <div class="form-group">
                                 <label for="benefits-health-checkups">Annual Health Checkups?</label>
                                 <select id="benefits-health-checkups">
@@ -998,122 +991,105 @@
                                     <input type="number" id="bond-penalty-amount" min="0">
                                 </div>
                             </div>
-                            <div class="form-group">
-                                <label for="bond-background-check">Background Check Mandatory?</label>
-                                <select id="bond-background-check">
-                                    <option value="" disabled selected>Select</option>
-                                    <option value="yes">Yes</option>
-                                    <option value="no">No</option>
-                                </select>
+                        </div>
+
+                        <div class="collapsible-section">
+                            <button type="button" class="collapsible-header">🏢 Company Details</button>
+                            <div class="collapsible-content">
+                                <div class="form-group">
+                                    <label for="company-details-registered-address">Registered Address <span
+                                            class="required">*</span></label>
+                                    <input type="text" id="company-details-registered-address">
+                                </div>
+                                <div class="form-group">
+                                    <label for="company-details-hr-name">HR Contact Person Name <span
+                                            class="required">*</span></label>
+                                    <input type="text" id="company-details-hr-name">
+                                </div>
+                                <div class="form-group">
+                                    <label for="company-details-hr-designation">HR Designation <span
+                                            class="required">*</span></label>
+                                    <input type="text" id="company-details-hr-designation">
+                                </div>
+                                <div class="form-group">
+                                    <label for="company-details-hr-email">HR Email <span
+                                            class="required">*</span></label>
+                                    <input type="email" id="company-details-hr-email">
+                                </div>
+                                <div class="form-group">
+                                    <label for="company-details-branch-locations">Branch Locations</label>
+                                    <select id="company-details-branch-locations" multiple>
+                                        <option value="delhi">Delhi</option>
+                                        <option value="bangalore">Bangalore</option>
+                                        <option value="mumbai">Mumbai</option>
+                                        <option value="hyderabad">Hyderabad</option>
+                                        <option value="chennai">Chennai</option>
+                                        <option value="pune">Pune</option>
+                                        <option value="kolkata">Kolkata</option>
+                                    </select>
+                                    <small>Hold Ctrl/Cmd to select multiple locations</small>
+                                </div>
                             </div>
-                            <div class="form-group">
-                                <label for="bond-probation-period">Probation Period (Months)</label>
-                                <input type="number" id="bond-probation-period" min="0">
+                        </div>
+
+                        <div class="collapsible-section">
+                            <button type="button" class="collapsible-header">📎 Attachments (Optional Upload)</button>
+                            <div class="collapsible-content">
+                                <div class="form-group">
+                                    <label for="attachments-job-description-pdf">Job Description PDF (Optional)</label>
+                                    <input type="file" id="attachments-job-description-pdf" accept="application/pdf"
+                                        required="false">
+                                </div>
+                                <div class="form-group">
+                                    <label for="attachments-salary-structure-pdf">Salary Structure PDF
+                                        (Optional)</label>
+                                    <input type="file" id="attachments-salary-structure-pdf" accept="application/pdf"
+                                        required="false">
+                                </div>
+                                <div class="form-group">
+                                    <label for="attachments-leave-policy-pdf">Leave Policy PDF (Optional)</label>
+                                    <input type="file" id="attachments-leave-policy-pdf" accept="application/pdf"
+                                        required="false">
+                                </div>
+                                <div class="form-group">
+                                    <label for="attachments-bond-copy">Bond Copy (Optional)</label>
+                                    <input type="file" id="attachments-bond-copy" accept="application/pdf"
+                                        required="false">
+                                </div>
+                                <div class="form-group">
+                                    <label for="attachments-medical-insurance-terms">Medical Insurance Terms
+                                        (Optional)</label>
+                                    <input type="file" id="attachments-medical-insurance-terms" accept="application/pdf"
+                                        required="false">
+                                </div>
                             </div>
-                            <div class="form-group">
-                                <label for="bond-notice-period">Notice Period (Months)</label>
-                                <input type="number" id="bond-notice-period" min="0">
-                            </div>
-                            <div class="form-group">
-                                <label for="bond-non-compete">Non-compete Clause?</label>
-                                <select id="bond-non-compete">
-                                    <option value="" disabled selected>Select</option>
-                                    <option value="yes">Yes</option>
-                                    <option value="no">No</option>
-                                </select>
+                        </div>
+
+                        <div class="collapsible-section">
+                            <button type="button" class="collapsible-header">💡 Bonus (Optional Fields)</button>
+                            <div class="collapsible-content">
+                                <div class="form-group">
+                                    <label for="bonus-growth-opportunities">Growth Opportunities</label>
+                                    <textarea id="bonus-growth-opportunities" rows="3"></textarea>
+                                </div>
+                                <div class="form-group">
+                                    <label for="bonus-travel-requirements">Travel Requirements</label>
+                                    <input type="text" id="bonus-travel-requirements">
+                                </div>
+                                <div class="form-group">
+                                    <label for="bonus-id-email-setup-timeline">ID/Email Setup Timeline</label>
+                                    <input type="text" id="bonus-id-email-setup-timeline"
+                                        placeholder="e.g., Within 3 days of joining">
+                                </div>
+                                <div class="form-group">
+                                    <label for="bonus-onboarding-process">Onboarding Process Description</label>
+                                    <textarea id="bonus-onboarding-process" rows="3"></textarea>
+                                </div>
                             </div>
                         </div>
                     </div>
 
-                    <div class="collapsible-section">
-                        <button type="button" class="collapsible-header">🏢 Company Details</button>
-                        <div class="collapsible-content">
-                            <div class="form-group">
-                                <label for="company-details-registered-address">Registered Address <span
-                                        class="required">*</span></label>
-                                <input type="text" id="company-details-registered-address">
-                            </div>
-                            <div class="form-group">
-                                <label for="company-details-hr-name">HR Contact Person Name <span
-                                        class="required">*</span></label>
-                                <input type="text" id="company-details-hr-name">
-                            </div>
-                            <div class="form-group">
-                                <label for="company-details-hr-designation">HR Designation <span
-                                        class="required">*</span></label>
-                                <input type="text" id="company-details-hr-designation">
-                            </div>
-                            <div class="form-group">
-                                <label for="company-details-hr-email">HR Email <span class="required">*</span></label>
-                                <input type="email" id="company-details-hr-email">
-                            </div>
-                            <div class="form-group">
-                                <label for="company-details-branch-locations">Branch Locations</label>
-                                <select id="company-details-branch-locations" multiple>
-                                    <option value="delhi">Delhi</option>
-                                    <option value="bangalore">Bangalore</option>
-                                    <option value="mumbai">Mumbai</option>
-                                    <option value="hyderabad">Hyderabad</option>
-                                    <option value="chennai">Chennai</option>
-                                    <option value="pune">Pune</option>
-                                    <option value="kolkata">Kolkata</option>
-                                </select>
-                                <small>Hold Ctrl/Cmd to select multiple locations</small>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="collapsible-section">
-                        <button type="button" class="collapsible-header">📎 Attachments (Optional Upload)</button>
-                        <div class="collapsible-content">
-                            <div class="form-group">
-                                <label for="attachments-job-description-pdf">Job Description PDF</label>
-                                <input type="file" id="attachments-job-description-pdf" accept="application/pdf">
-                            </div>
-                            <div class="form-group">
-                                <label for="attachments-salary-structure-pdf">Salary Structure PDF</label>
-                                <input type="file" id="attachments-salary-structure-pdf" accept="application/pdf">
-                            </div>
-                            <div class="form-group">
-                                <label for="attachments-leave-policy-pdf">Leave Policy PDF</label>
-                                <input type="file" id="attachments-leave-policy-pdf" accept="application/pdf">
-                            </div>
-                            <div class="form-group">
-                                <label for="attachments-bond-copy">Bond Copy</label>
-                                <input type="file" id="attachments-bond-copy" accept="application/pdf">
-                            </div>
-                            <div class="form-group">
-                                <label for="attachments-medical-insurance-terms">Medical Insurance Terms</label>
-                                <input type="file" id="attachments-medical-insurance-terms" accept="application/pdf">
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="collapsible-section">
-                        <button type="button" class="collapsible-header">💡 Bonus (Optional Fields)</button>
-                        <div class="collapsible-content">
-                            <div class="form-group">
-                                <label for="bonus-growth-opportunities">Growth Opportunities</label>
-                                <textarea id="bonus-growth-opportunities" rows="3"></textarea>
-                            </div>
-                            <div class="form-group">
-                                <label for="bonus-travel-requirements">Travel Requirements</label>
-                                <input type="text" id="bonus-travel-requirements">
-                            </div>
-                            <div class="form-group">
-                                <label for="bonus-id-email-setup-timeline">ID/Email Setup Timeline</label>
-                                <input type="text" id="bonus-id-email-setup-timeline"
-                                    placeholder="e.g., Within 3 days of joining">
-                            </div>
-                            <div class="form-group">
-                                <label for="bonus-onboarding-process">Onboarding Process Description</label>
-                                <textarea id="bonus-onboarding-process" rows="3"></textarea>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <button type="submit" class="btn btn-primary btn-full mt-4">Post Opportunity</button>
+                    <button type="submit" class="btn btn-primary btn-full mt-4">Post Opportunity</button>
             </form>
         </div>
     </div>
@@ -1127,11 +1103,13 @@
             <form id="student-profile-edit-form" class="form two-column" style="gap: 20px;">
                 <div class="form-group" style="flex: 1 1 100%;">
                     <label for="edit-student-name">Name</label>
-                    <input type="text" id="edit-student-name" required style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc;">
+                    <input type="text" id="edit-student-name" required
+                        style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc;">
                 </div>
                 <div class="form-group" style="flex: 1 1 48%;">
                     <label for="edit-student-phone">Phone Number (with country code, e.g., +91)</label>
-                    <input type="tel" id="edit-student-phone" required pattern="\+[0-9]{1,3}[0-9]{10}" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc;">
+                    <input type="tel" id="edit-student-phone" required pattern="\+[0-9]{1,3}[0-9]{10}"
+                        style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc;">
                 </div>
                 <!-- Avatar preview and upload -->
                 <div class="avatar-group">
@@ -1144,43 +1122,52 @@
                 </div>
                 <div class="form-group" style="flex: 1 1 48%;">
                     <label for="edit-student-department">Department</label>
-                    <select id="edit-student-department" required style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc;">
+                    <select id="edit-student-department" required
+                        style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc;">
                         <option value="" disabled selected>Select Department</option>
                         <option value="AI&DS">AI&DS</option>
                         <option value="AI&ML">AI&ML</option>
                         <option value="CIVIL">CIVIL</option>
                         <option value="CSI">CSI</option>
                         <option value="IT">IT</option>
-                        <option value="ELECTRONICS AND COMMUNICATION ENGINEERING">ELECTRONICS AND COMMUNICATION ENGINEERING</option>
+                        <option value="ELECTRONICS AND COMMUNICATION ENGINEERING">ELECTRONICS AND COMMUNICATION
+                            ENGINEERING</option>
                     </select>
                 </div>
                 <div class="form-group" style="flex: 1 1 48%;">
                     <label for="edit-student-github">GitHub Profile</label>
-                    <input type="url" id="edit-student-github" required style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc;">
+                    <input type="url" id="edit-student-github" required
+                        style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc;">
                 </div>
                 <div class="form-group" style="flex: 1 1 48%;">
                     <label for="edit-student-linkedin">LinkedIn Profile</label>
-                    <input type="url" id="edit-student-linkedin" required style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc;">
+                    <input type="url" id="edit-student-linkedin" required
+                        style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc;">
                 </div>
                 <div class="form-group" style="flex: 1 1 48%;">
                     <label for="edit-student-overall-cgpa">Overall CGPA</label>
-                    <input type="number" step="0.1" min="0" max="10" id="edit-student-overall-cgpa" required style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc;">
+                    <input type="number" step="0.1" min="0" max="10" id="edit-student-overall-cgpa" required
+                        style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc;">
                 </div>
                 <div class="form-group" style="flex: 1 1 48%;">
                     <label for="edit-student-10th">10th Percentage</label>
-                    <input type="number" step="0.1" min="0" max="100" id="edit-student-10th" required style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc;">
+                    <input type="number" step="0.1" min="0" max="100" id="edit-student-10th" required
+                        style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc;">
                 </div>
                 <div class="form-group" style="flex: 1 1 48%;">
                     <label for="edit-student-12th">12th Percentage</label>
-                    <input type="number" step="0.1" min="0" max="100" id="edit-student-12th" required style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc;">
+                    <input type="number" step="0.1" min="0" max="100" id="edit-student-12th" required
+                        style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc;">
                 </div>
                 <div class="form-group" style="flex: 1 1 48%;">
                     <label for="edit-student-interest">Area of Interest</label>
-                    <input type="text" id="edit-student-interest" required style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc;">
+                    <input type="text" id="edit-student-interest" required
+                        style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc;">
                 </div>
                 <div class="form-group" style="flex: 1 1 48%;">
                     <label for="edit-student-grad-year">Graduation Year</label>
-                    <input type="number" id="edit-student-grad-year" required style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc;">
+                    <input type="number" id="edit-student-grad-year" required
+                        style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc;">
                 </div>
                 <div class="form-group" style="flex: 1 1 100%;">
                     <label for="edit-student-skills">Skills</label>
@@ -1232,8 +1219,10 @@
                     </select>
                     <small>Hold Ctrl/Cmd to select multiple skills</small>
                     <div class="custom-skill-input-group">
-                        <input type="text" id="edit-student-custom-skill" placeholder="Add custom skill" style="width: 80%; padding: 6px; border-radius: 6px; border: 1px solid #ccc;">
-                        <button type="button" class="btn btn-secondary btn-small" id="add-custom-skill-btn" style="width: 18%;">Add Skill</button>
+                        <input type="text" id="edit-student-custom-skill" placeholder="Add custom skill"
+                            style="width: 80%; padding: 6px; border-radius: 6px; border: 1px solid #ccc;">
+                        <button type="button" class="btn btn-secondary btn-small" id="add-custom-skill-btn"
+                            style="width: 18%;">Add Skill</button>
                     </div>
                     <div id="selected-skills-display" class="skills-container mt-2"></div>
                 </div>

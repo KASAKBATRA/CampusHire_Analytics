@@ -124,6 +124,30 @@ function showRoleFields() {
     }
 }
 
+// New logic for job posting form eligibility qualification and branches
+document.addEventListener('DOMContentLoaded', () => {
+    const qualificationSelect = document.getElementById('eligibility-qualification');
+    const branchesGroup = document.getElementById('branches-group');
+
+    if (qualificationSelect && branchesGroup) {
+        function toggleBranchesVisibility() {
+            if (qualificationSelect.value === 'BTech') {
+                branchesGroup.style.display = 'block';
+            } else {
+                branchesGroup.style.display = 'none';
+                const branchesSelect = document.getElementById('eligibility-preferred-courses');
+                if (branchesSelect) {
+                    branchesSelect.selectedIndex = -1; // Clear selection
+                }
+            }
+        }
+
+        qualificationSelect.addEventListener('change', toggleBranchesVisibility);
+        toggleBranchesVisibility(); // Initial call
+    }
+});
+
+
 function showLogin() {
     showModal('login-role-modal');
 }
@@ -1441,6 +1465,15 @@ document.getElementById('company-profile-edit-form').addEventListener('submit', 
 
 document.getElementById('job-form').addEventListener('submit', async function(e) {
     e.preventDefault();
+    
+    // Disable validation on hidden custom salary components
+    document.querySelectorAll('.custom-salary-component-row[style*="display:none"], .custom-salary-component-row[style*="display: none"]').forEach(row => {
+        row.querySelectorAll('input').forEach(input => {
+            input.removeAttribute('required');
+            input.disabled = true;
+        });
+    });
+    
     const submitBtn = this.querySelector('button[type="submit"]');
     submitBtn.classList.add('loading');
     submitBtn.disabled = true;
@@ -1490,9 +1523,9 @@ document.getElementById('job-form').addEventListener('submit', async function(e)
 
         jobData.eligibility = {
             qualification: document.getElementById('eligibility-qualification').value.trim(),
-            eligibility_courses: Array.from(document.getElementById('eligibility-preferred-courses').selectedOptions).map(option => option.value), // Corrected field name
-            eligibility_grad_year: parseInt(document.getElementById('eligibility-graduation-year').value), // Corrected field name
-            eligibility_min_cgpa: parseFloat(document.getElementById('eligibility-min-cgpa').value) // Corrected field name
+            eligibility_courses: Array.from(document.getElementById('eligibility-preferred-courses').selectedOptions).map(option => option.value),
+            eligibility_grad_year: parseInt(document.getElementById('eligibility-graduation-year').value),
+            eligibility_min_cgpa: parseFloat(document.getElementById('eligibility-min-cgpa').value)
         };
 
         jobData.salary_ctc = parseFloat(document.getElementById('salary-total-ctc').value); // Corrected field name
@@ -1549,23 +1582,23 @@ document.getElementById('job-form').addEventListener('submit', async function(e)
         jobData.bond_duration_value = parseInt(document.getElementById('bond-duration-value').value) || 0; // Corrected field name
         jobData.bond_duration_unit = document.getElementById('bond-duration-unit').value; // Corrected field name
         jobData.bond_penalty_amount = parseFloat(document.getElementById('bond-penalty-amount').value) || 0; // Corrected field name
-        jobData.bond_background_check = document.getElementById('bond-background-check').value; // Corrected field name
-        jobData.bond_probation_period = parseInt(document.getElementById('bond-probation-period').value) || 0; // Corrected field name
-        jobData.bond_notice_period = parseInt(document.getElementById('bond-notice-period').value) || 0; // Corrected field name
-        jobData.bond_non_compete = document.getElementById('bond-non-compete').value; // Corrected field name
 
         // Collect Company Details data
-        jobData.company_address = document.getElementById('company-details-registered-address').value.trim(); // Corrected field name
-        jobData.hr_contact_name = document.getElementById('company-details-hr-name').value.trim(); // Corrected field name
-        jobData.hr_designation = document.getElementById('company-details-hr-designation').value.trim(); // Corrected field name
-        jobData.hr_email = document.getElementById('company-details-hr-email').value.trim(); // Corrected field name
-        jobData.branch_locations = Array.from(document.getElementById('company-details-branch-locations').selectedOptions).map(option => option.value); // Corrected field name
+        jobData.companyDetails = {
+            registeredAddress: document.getElementById('company-details-registered-address').value.trim(),
+            hrContactPersonName: document.getElementById('company-details-hr-name').value.trim(),
+            hrDesignation: document.getElementById('company-details-hr-designation').value.trim(),
+            hrEmail: document.getElementById('company-details-hr-email').value.trim()
+        };
+        jobData.branch_locations = Array.from(document.getElementById('company-details-branch-locations').selectedOptions).map(option => option.value);
 
         // Collect Bonus (Optional Fields) data
-        jobData.growth_opportunities = document.getElementById('bonus-growth-opportunities').value.trim(); // Corrected field name
-        jobData.travel_requirements = document.getElementById('bonus-travel-requirements').value.trim(); // Corrected field name
-        jobData.id_email_setup_timeline = document.getElementById('bonus-id-email-setup-timeline').value.trim(); // Corrected field name
-        jobData.onboarding_process = document.getElementById('bonus-onboarding-process').value.trim(); // Corrected field name
+        jobData.bonus = {
+            growthOpportunities: document.getElementById('bonus-growth-opportunities').value.trim(),
+            travelRequirements: document.getElementById('bonus-travel-requirements').value.trim(),
+            idEmailSetupTimeline: document.getElementById('bonus-id-email-setup-timeline').value.trim(),
+            onboardingProcess: document.getElementById('bonus-onboarding-process').value.trim()
+        };
 
         // Basic validation for job fields
         if (!jobData.title || !jobData.work_type || jobData.locations.length === 0 || isNaN(jobData.openings) || jobData.openings <= 0 || jobData.skills.length === 0 || !jobData.description || !jobData.responsibilities || !jobData.eligibility.qualification || jobData.eligibility.eligibility_courses.length === 0 || isNaN(jobData.eligibility.eligibility_grad_year) || isNaN(jobData.eligibility.eligibility_min_cgpa) || isNaN(jobData.salary_ctc) || !jobData.company_address || !jobData.hr_contact_name || !jobData.hr_designation || !jobData.hr_email) {
@@ -1599,6 +1632,13 @@ document.getElementById('job-form').addEventListener('submit', async function(e)
     }
 
     // Prepare FormData for submission (including files)
+    // Re-enable hidden custom salary components so they get included in FormData
+    document.querySelectorAll('.custom-salary-component-row').forEach(row => {
+        row.querySelectorAll('input').forEach(input => {
+            input.disabled = false;
+        });
+    });
+    
     const formData = new FormData();
     for (const key in jobData) {
         if (Array.isArray(jobData[key]) || typeof jobData[key] === 'object' && jobData[key] !== null) {
@@ -1881,8 +1921,14 @@ function setRequiredFields(type, isRequired) {
         // Only set required/disabled if the field is not the main opportunity-type select itself
         // and if it's not already explicitly disabled by HTML (e.g., register form fields)
         if (input.id !== 'opportunity-type') {
-            input.required = isRequired;
-            input.disabled = !isRequired; // Disable if not required, enable if required
+            // Always enable and require benefits-laptop-provided when job section is active
+            if (type === 'job' && input.id === 'benefits-laptop-provided') {
+                input.required = true;
+                input.disabled = false;
+            } else {
+                input.required = isRequired;
+                input.disabled = !isRequired; // Disable if not required, enable if required
+            }
         }
     });
 }
@@ -1963,7 +2009,22 @@ function calculateInHandSalary() {
 
     const totalCtc = parseFloat(document.getElementById('salary-total-ctc').value) || 0;
     // Convert CTC from LPA to monthly, then subtract monthly components
-    const estimatedMonthlyInHand = (totalCtc * 100000 / 12) - totalComponents;
+    // Fix: Only subtract components that are deductions (e.g., PF/ESIC), add others
+    // For simplicity, assume basic pay, HRA, special allowance, bonus are additions, PF/ESIC and gratuity are deductions
+    let additions = 0;
+    let deductions = 0;
+
+    document.querySelectorAll('.salary-component-amount').forEach(input => {
+        const component = input.dataset.component;
+        const value = parseFloat(input.value) || 0;
+        if (['pf-esic', 'gratuity'].includes(component)) {
+            deductions += value;
+        } else {
+            additions += value;
+        }
+    });
+
+    const estimatedMonthlyInHand = (totalCtc * 100000 / 12) + additions - deductions;
 
     document.getElementById('in-hand-salary-estimate').textContent = estimatedMonthlyInHand.toFixed(2);
 }
@@ -1975,9 +2036,9 @@ function addCustomSalaryComponent() {
     const newRow = document.createElement('tr');
     newRow.className = 'custom-salary-component-row';
     newRow.innerHTML = `
-        <td><input type="text" class="salary-component-name" data-component="custom-name-${customComponentCount}" placeholder="Other (custom field)"></td>
-        <td><input type="number" class="salary-component-amount" data-component="custom-amount-${customComponentCount}" min="0"></td>
-        <td><input type="text" class="salary-component-note" data-component="custom-note-${customComponentCount}" placeholder="Optional text"></td>
+        <td><input type="text" class="salary-component-name" name="custom-name-${customComponentCount}" data-component="custom-name-${customComponentCount}" placeholder="Other (custom field)"></td>
+        <td><input type="number" class="salary-component-amount" name="custom-amount-${customComponentCount}" data-component="custom-amount-${customComponentCount}" min="0"></td>
+        <td><input type="text" class="salary-component-note" name="custom-note-${customComponentCount}" data-component="custom-note-${customComponentCount}" placeholder="Optional text"></td>
     `;
     tbody.appendChild(newRow);
     newRow.style.display = 'table-row';
